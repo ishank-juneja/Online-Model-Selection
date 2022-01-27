@@ -1,4 +1,3 @@
-import os
 import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
@@ -15,26 +14,20 @@ class MujocoBall(mujoco_env.MujocoEnv, utils.EzPickle):
     def _get_obs(self):
         return self.render(mode='rgb_array', width=64, height=64, camera_id=0)
 
-    # def _get_state(self):
-    #     # State is [x_ball, y_ball]
-    #     return np.concatenate([self.sim.data.qpos[:1], self.sim.data.qpos[0]]).ravel()
-
-    def reset_model(self):
-        self.set_state
-        initial_cost = 0.0
-        # Now want the problem to be non trivial - can't start at goal, so will just
-        # Rejection sample goal
-        while initial_cost < .75:
-            self.goal_x = np.random.uniform(low=0.0, high=1.5)
-            self.goal_y = np.random.uniform(low=-1.0, high=.1)
-            initial_cost, _ = self.get_cost()
-
-        self.sim.model.body_pos[self.sim.model.body_name2id('target')] = [-self.goal_x, 0, self.goal_y]
-        return self._get_obs()
+    def _get_state(self):
+        return np.concatenate([self.sim.data.qpos[0]]).ravel()
 
     def reset(self):
         self.done = False
         return self.reset_model()
+
+    def reset_model(self):
+        self.set_state(np.array([0.0]), np.array([0.0]))
+        return self._get_obs()
+
+    # def _get_state(self):
+    #     # State is [x_ball, y_ball]
+    #     return np.concatenate([self.sim.data.qpos[:1], self.sim.data.qpos[0]]).ravel()
 
     def step(self, action):
         action = np.clip(action, -1.0, 1.0)

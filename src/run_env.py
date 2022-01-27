@@ -32,8 +32,6 @@ if __name__ == '__main__':
     parser.add_argument("--image-observations", action="store_true", help="Observations as images?")
     # Terminate an episode when the underlying task of mujoco cartpole is completed
     parser.add_argument("--terminate-at-done", action="store_true")
-    # Terminate a trajectory once the device goes off-screen
-    parser.add_argument("--terminate-off-screen", action="store_true")
     args = parser.parse_args()
 
     # Create a gym object for the environment
@@ -73,12 +71,12 @@ if __name__ == '__main__':
             # Sample a random action
             action = env.action_space.sample()
             # action = env.np_random.uniform(low=-0.1, high=0.1, size=6)
-            observation, _, _, _ = env.step(action)
+            observation, _, done, info = env.step(action)
             # Save this observation frame to disk
             obs_path = mydirmanager.next_path(traj_dir_path, 'state_', '%s.npy')
             np.save(obs_path, observation)
             # # info is something we get when we use a mujoco env, NA for gym in built envs
-            # state = info["state"]
+            state = info["state"]
             if args.show:
                 # For the first time an image is created
                 if img is None:
@@ -88,8 +86,6 @@ if __name__ == '__main__':
                 plt.pause(0.01)
                 plt.draw()
             if args.terminate_at_done and done:
-                break
-            if args.terminate_off_screen and (np.abs(state[0]) > 1.7):
                 break
             # observation at t
             # state at t

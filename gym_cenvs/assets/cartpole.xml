@@ -35,6 +35,7 @@
       <geom name="gcart" type="capsule" pos="0 0 0" quat="0.707 0 0.707 0 " rgba="1 1 1 1" size="0.01 0.01" mass="1."/>
       <body name="pole" pos="0 0 0">
         <joint name="hinge" type="hinge" axis="0 1 0" pos="0 0 0"/>
+        <!--        length = 1.0 is twice the fromto (cylinder emanating from both sides)-->
         <geom name="gpole" type="capsule" fromto="0 0 0 0 0 1.0"  rgba="1 1 1 1" mass="1." size="0.1 0.5"/>
         <!--        massless endpoint sphere, position chosen according to length of pole-->
         <body name="mass" pos="0 0 1.0">
@@ -44,9 +45,10 @@
         </body>
       </body>
     </body>
-<!--    <body name="target" pos="-0.75 0 -0.75">-->
-<!--      <geom rgba="1 1 1 1" size="0.1 0.1" mass="1." type="sphere" name="gtarget" contype="2" conaffinity="2"/>-->
-<!--    </body>-->
+  <!--removed target point for conkers like game playing    -->
+  <!--    <body name="target" pos="-0.75 0 -0.75">-->
+  <!--      <geom rgba="1 1 1 1" size="0.1 0.1" mass="1." type="sphere" name="gtarget" contype="2" conaffinity="2"/>-->
+  <!--    </body>-->
   </worldbody>
   <actuator>
     <motor joint="slider" name="slide" ctrllimited="true" ctrlrange="-1 1" gear="40"/>

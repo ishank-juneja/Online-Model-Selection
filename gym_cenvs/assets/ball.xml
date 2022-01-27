@@ -23,6 +23,10 @@
       <joint type="free" name="dummy"/>
       <geom size="0.2 0.2" mass="1.0" rgba="1 1 1 1" type="sphere" name="gmass" contype="3" conaffinity="3"/>
     </body>
+    <body name="gball2" pos="0 0 0">
+      <joint type="free" name="dummy2"/>
+      <geom size="0.2 0.2" mass="1.0" rgba="1 1 1 1" type="sphere" name="gmass2" contype="3" conaffinity="3"/>
+    </body>
   </worldbody>
   <actuator>
     <motor gear="40" joint="dummy" name="dummy_ac"/>
