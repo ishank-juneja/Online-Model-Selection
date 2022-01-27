@@ -10,6 +10,8 @@ import numpy as np
 import argparse
 import matplotlib.pyplot as plt
 from results_dir_manager import ResultDirManager
+from arm_pytorch_utilities.rand import seed
+seed(0)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

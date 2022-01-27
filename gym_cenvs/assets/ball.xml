@@ -19,17 +19,14 @@
   <size nstack="3000"/>
   <worldbody>
     <camera name="rgb" mode="fixed" pos="0 4 0.0" euler="-90 0 180"/>
-    <body name="gball" pos="0 0 0">
-      <joint type="free" name="dummy"/>
-      <geom size="0.2 0.2" mass="1.0" rgba="1 1 1 1" type="sphere" name="gmass" contype="3" conaffinity="3"/>
-    </body>
-    <body name="gball2" pos="0 0 0">
-      <joint type="free" name="dummy2"/>
-      <geom size="0.2 0.2" mass="1.0" rgba="1 1 1 1" type="sphere" name="gmass2" contype="3" conaffinity="3"/>
+    <body name="ball" pos="0 0 0">
+      <!--      free joints don't have a position and their params (pos, vel) are the params of the associated geom -->
+      <joint name="dummy" type="free"/>
+      <geom name="gball" type="sphere" size="0.2 0.2" mass="1.0" rgba="1 1 1 1" contype="3" conaffinity="3"/>
     </body>
   </worldbody>
   <actuator>
-    <motor gear="40" joint="dummy" name="dummy_ac"/>
+    <motor name="dummy_ac" joint="dummy" gear="40"/>
   </actuator>
 </mujoco>
 

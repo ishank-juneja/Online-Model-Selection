@@ -29,7 +29,6 @@ class MujocoCartPoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.reset_model()
         self.init_qpos[1] += np.pi
         self.init_qpos[0] += 1.00
-        print(self.data.ncon)
 
     def randomize_geometry(self):
         # zero state
@@ -58,6 +57,7 @@ class MujocoCartPoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         state = self._get_state()
         # Also terminate if the cart/slider joint goes out of the sim camera FOV
         out_of_view = np.abs(self.sim.data.qpos[0]) > 1.7 # Earlier tried 2.5
+        # self.done is never set to True since there is no task
         done = out_of_view or self.done
         # dummy cost
         cost = 0.0
@@ -83,6 +83,7 @@ class MujocoCartPoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self.reset_model()
 
     def reset_model(self):
+        # Set joint angles and velocities
         self.set_state(
             np.concatenate((self.init_qpos[0] + self.np_random.uniform(low=-1.5, high=1.5, size=1),
                             self.init_qpos[1] + self.np_random.uniform(low=0.25 * -np.pi, high=0.25 * np.pi, size=1))),
