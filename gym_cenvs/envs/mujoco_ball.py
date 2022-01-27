@@ -37,8 +37,9 @@ class MujocoBall(mujoco_env.MujocoEnv, utils.EzPickle):
         self.do_simulation(action, self.frame_skip)
         ob = self._get_obs()
         state = self._get_state()
-        # Also terminate if the cart/slider joint goes out of the sim camera FOV
-        out_of_view = np.max(np.abs(self.sim.data.qpos[:2])) > 1.7 # Earlier tried 2.5
+        # Terminate if the ball goes out of view
+        # TODO: tune x and y components for out_of_view seperately
+        out_of_view = np.min(np.abs(self.sim.data.qpos[:2])) > 1.7 # Earlier tried 2.5
         # self.done is never set to True since there is no task
         done = out_of_view or self.done
         # dummy cost
@@ -61,11 +62,12 @@ class MujocoBall(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def reset_model(self):
         # No variation in z-position
-        ball_xyz = np.hstack((self.np_random.uniform(low=-1.0, high=1.0, size=2), 0.0))
+        ball_xyz = np.hstack((self.np_random.uniform(low=-1.0, high=1.0, size=1),
+                              self.np_random.uniform(low=-0.2, high=0.2, size=1), 0.0))
         ball_quat = np.hstack((1.0, np.zeros(3, dtype=np.float64)))
         ball_free_jnt_state = np.hstack((ball_xyz, ball_quat))
         # Reset ball velocity randomly in (x, y) dir and 0 for z and rotational
-        ball_free_jnt_vel = np.hstack((self.np_random.uniform(low=-10.0, high=10.0, size=2),
+        ball_free_jnt_vel = np.hstack((self.np_random.uniform(low=-1.0, high=1.0, size=2),
                                        np.zeros(4, dtype=np.float64)))
         self.set_state(ball_free_jnt_state, ball_free_jnt_vel)
         return self._get_obs()

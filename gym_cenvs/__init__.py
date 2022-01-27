@@ -7,6 +7,12 @@ register(
 )
 
 register(
+    id='Conkers-v1',
+    entry_point='gym_cenvs.envs:ConkersEnv',
+    kwargs={'transparent_rope': True}
+)
+
+register(
     id='MujocoCartpole-v0',
     entry_point='gym_cenvs.envs:MujocoCartPoleEnv',
 )

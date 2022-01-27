@@ -6,17 +6,24 @@ from mujoco_py.generated import const
 
 
 class ConkersEnv(mujoco_env.MujocoEnv, utils.EzPickle):
-
-    def __init__(self, fixed_environment=False):
+    def __init__(self, transparent_rope=False):
         self.goal_x = 0
         self.goal_y = 0
         self.done = False
-        xml_path = os.path.join(os.path.dirname(__file__), '/home/ishank/Desktop/xdtl/gym_cenvs/assets/conkers.xml')
+        # Number of links in chain link approximation of rope
+        self.nlinks = 10
+        xml_path = os.path.join(os.path.dirname(__file__), '/home/ishank/Desktop/MM-LVSPC/gym_cenvs/assets/conkers.xml')
         mujoco_env.MujocoEnv.__init__(self, xml_path, 50)
         utils.EzPickle.__init__(self)
         self.reset_model()
         self.init_qpos[1] += np.pi
         self.init_qpos[0] = 1.0
+        # Make rope transparent for rope free ball dataset
+        if transparent_rope:
+            # Set the color of each geom associated with rope link to transparent
+            for idx in range(self.nlinks):
+                gname = "gpole{0}".format(idx + 1)
+                self.model.geom_rgba[self.sim.model.geom_name2id(gname)] = (1, 1, 1, 0)
 
     def step(self, action):
         action = np.clip(action, -1.0, 1.0)
