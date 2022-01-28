@@ -67,6 +67,9 @@ class MujocoCartPoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self.render(mode='rgb_array', width=64, height=64, camera_id=0)
 
     # State is [x_cart, x_mass, y_mass, v_cart, theta_dot_mass]
+    # x_mass and y_mass here are the (x, y (or rather z)) of the contact between the mass and the rope
+    # Sign of x components is flipped so that the sign is consistent with a std. x-y coordinate plane,
+    # though technically an x-z plane
     def _get_state(self):
         _st = np.concatenate([
             -self.sim.data.qpos[:1],  # cart x pos

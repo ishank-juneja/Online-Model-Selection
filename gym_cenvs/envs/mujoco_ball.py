@@ -13,8 +13,8 @@ class MujocoBall(mujoco_env.MujocoEnv, utils.EzPickle):
         self.done = False
         # Fixed initial ball radius
         self.bradius = 0.2
-        self.bradius_max_add = 0.3
-        self.bradius_max_sub = 0.15
+        self.bradius_max_add = 0.25
+        self.bradius_max_sub = 0.125
         # Domain rand over geometry
         self.randomize = True
         # - - - - - - - - - - - - - - - -
@@ -38,8 +38,10 @@ class MujocoBall(mujoco_env.MujocoEnv, utils.EzPickle):
         ob = self._get_obs()
         state = self._get_state()
         # Terminate if the ball goes out of view
-        # TODO: tune x and y components for out_of_view seperately
-        out_of_view = np.min(np.abs(self.sim.data.qpos[:2])) > 1.7 # Earlier tried 2.5
+        out_of_view_x = np.abs(self.sim.data.qpos[0]) > 1.7 # Earlier tried 2.5
+        # On sided ineq since always falls down
+        out_of_view_z = self.sim.data.qpos[2] < -2.0
+        out_of_view = out_of_view_x or out_of_view_z
         # self.done is never set to True since there is no task
         done = out_of_view or self.done
         # dummy cost
@@ -49,10 +51,10 @@ class MujocoBall(mujoco_env.MujocoEnv, utils.EzPickle):
     def _get_obs(self):
         return self.render(mode='rgb_array', width=64, height=64, camera_id=0)
 
-    # State is [x_cart, x_mass, y_mass, v_cart, theta_dot_mass]
-    # TODO: Fix the state being extracted from the ball, some direction/sense related issue
+    # State is [x_ball, z_ball]
     def _get_state(self):
-        _st = np.hstack((self.sim.data.qpos, self.sim.data.qvel))   # x_ball, y_ball
+        # x_ball, z_ball, Give perception only coordinates and not velocities
+        _st = np.hstack((-1 * self.sim.data.qpos[0], self.sim.data.qpos[2]))
         return _st
 
     def reset(self):
@@ -62,14 +64,21 @@ class MujocoBall(mujoco_env.MujocoEnv, utils.EzPickle):
         return self.reset_model()
 
     def reset_model(self):
-        # No variation in z-position
-        ball_xyz = np.hstack((self.np_random.uniform(low=-1.0, high=1.0, size=1),
-                              self.np_random.uniform(low=-0.2, high=0.2, size=1), 0.0))
-        ball_quat = np.hstack((0.0, np.zeros(3, dtype=np.float64)))
+        # No variation in y-position (depth)
+        ball_x = self.np_random.uniform(low=-1.0, high=1.0)
+        ball_y = 0.0
+        ball_z = self.np_random.uniform(low=-1.0, high=1.0)
+        ball_xyz = np.array([ball_x, ball_y, ball_z])
+        # Sphere orientation does not matter
+        ball_quat = np.hstack((1.0, np.zeros(3, dtype=np.float64)))
         ball_free_jnt_state = np.hstack((ball_xyz, ball_quat))
         # Reset ball velocity randomly in (x, y) dir and 0 for z and rotational
-        ball_free_jnt_vel = np.hstack((self.np_random.uniform(low=-1.0, high=1.0, size=2),
-                                       np.zeros(4, dtype=np.float64)))
+        ball_vx = self.np_random.uniform(low=-5.0, high=5.0)
+        ball_vy = 0.0
+        ball_vz = self.np_random.uniform(low=-1.0, high=1.0)
+        ball_vxyz = np.array([ball_vx, ball_vy, ball_vz])
+        # Set ball free joint velocity (aka ball velocity) with angular terms = 0
+        ball_free_jnt_vel = np.hstack((ball_vxyz, np.zeros(3, dtype=np.float64)))
         self.set_state(ball_free_jnt_state, ball_free_jnt_vel)
         return self._get_obs()
 
