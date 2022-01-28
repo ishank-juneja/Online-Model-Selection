@@ -50,8 +50,9 @@ class MujocoBall(mujoco_env.MujocoEnv, utils.EzPickle):
         return self.render(mode='rgb_array', width=64, height=64, camera_id=0)
 
     # State is [x_cart, x_mass, y_mass, v_cart, theta_dot_mass]
+    # TODO: Fix the state being extracted from the ball, some direction/sense related issue
     def _get_state(self):
-        _st = self.sim.data.qpos[:2]    # x_ball, y_ball
+        _st = np.hstack((self.sim.data.qpos, self.sim.data.qvel))   # x_ball, y_ball
         return _st
 
     def reset(self):
@@ -64,7 +65,7 @@ class MujocoBall(mujoco_env.MujocoEnv, utils.EzPickle):
         # No variation in z-position
         ball_xyz = np.hstack((self.np_random.uniform(low=-1.0, high=1.0, size=1),
                               self.np_random.uniform(low=-0.2, high=0.2, size=1), 0.0))
-        ball_quat = np.hstack((1.0, np.zeros(3, dtype=np.float64)))
+        ball_quat = np.hstack((0.0, np.zeros(3, dtype=np.float64)))
         ball_free_jnt_state = np.hstack((ball_xyz, ball_quat))
         # Reset ball velocity randomly in (x, y) dir and 0 for z and rotational
         ball_free_jnt_vel = np.hstack((self.np_random.uniform(low=-1.0, high=1.0, size=2),

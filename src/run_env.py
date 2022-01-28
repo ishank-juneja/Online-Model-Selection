@@ -83,6 +83,8 @@ if __name__ == '__main__':
                     img.set_data(observation[:, :, :3])
                 plt.pause(0.01)
                 plt.draw()
+                print(state)
+                # breakpoint()
             if args.terminate_at_done and done:
                 break
             # observation at t
