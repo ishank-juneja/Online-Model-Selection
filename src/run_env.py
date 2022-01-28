@@ -35,6 +35,8 @@ if __name__ == '__main__':
     # Create a gym object for the environment
     env_name = args.env
     env = gym.make(env_name)
+    env.seed(0)
+    env.action_space.seed(0)
     env.reset()
 
     # Create dir manager object for saving results
@@ -83,8 +85,8 @@ if __name__ == '__main__':
                     img.set_data(observation[:, :, :3])
                 plt.pause(0.01)
                 plt.draw()
-                print(state)
-                # breakpoint()
+                #print(state)
+                #breakpoint()
             if args.terminate_at_done and done:
                 break
             # observation at t
