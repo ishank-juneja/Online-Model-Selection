@@ -5,6 +5,7 @@ import os
 from mujoco_py.generated import const
 
 
+# TODO: document similar to cartpole
 class ConkersEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self, transparent_rope=False):
         self.goal_x = 0
@@ -84,10 +85,12 @@ class ConkersEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def get_goal(self):
         return [self.goal_x, self.goal_y]
 
+    # TODO: Add a free joint to the spherical conker to get the ground truth ball state in conkers
     def _get_state(self):
         return np.concatenate([
             self.sim.data.qpos,  # cart x pos
             np.clip(self.sim.data.qvel, -10, 10),
+            # TODO: Check about role of qfrc_constraint
             np.clip(self.sim.data.qfrc_constraint, -10, 10)
         ]).ravel()
 

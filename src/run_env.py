@@ -11,72 +11,75 @@ import argparse
 import matplotlib.pyplot as plt
 from results_dir_manager import ResultDirManager
 from arm_pytorch_utilities.rand import seed
-seed(0)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # Pass name of environment from within file gym_cenvs __init__.py
-    parser.add_argument("--env", help="gym environment", default="ContinuousCartpole-v0")
+    parser.add_argument("--env", help="gym environment")
+    # prefix for file names to be saved
+    parser.add_argument("--name-traj", help="name of loaded/saved trajectories", default=None)
     # Number of trajectories being used to get the desired images
     parser.add_argument("--ntraj", default=100, help="Number of trajectories", type=int)
     # Actions in each traj
     parser.add_argument("--len", default=100, help="Trajectory length", type=int)
-    # Save raw image observations as big .npy file: Shape ntrajs x len (traj-len) x 64 x 64 (Frame Shape) x 3 (RGB)
-    parser.add_argument("--save-observations", action="store_true", help="store trajectories")
-    # Save ground truth states and actions (ntrajs x len (traj-len) x dims in action/state space) as numpy arrays
-    parser.add_argument("--save-states", action="store_true")
-    parser.add_argument("--save-actions", action="store_true")
     # Display the images being produced
     parser.add_argument("--show", action="store_true", help="render env")
-    # Terminate an episode when the underlying task of mujoco cartpole is completed
-    parser.add_argument("--terminate-at-done", action="store_true")
+    # Random seed for torch, np, random, and gym
+    parser.add_argument("--seed", type=int)
     args = parser.parse_args()
 
     # Create a gym object for the environment
+    seed(args.seed)
     env_name = args.env
     env = gym.make(env_name)
-    env.seed(0)
-    env.action_space.seed(0)
+    env.seed(args.seed)
+    env.action_space.seed(args.seed)
     env.reset()
-
+    # Get name of dataset type (test/train)
+    dataset_name_prefix = args.name_traj
     # Create dir manager object for saving results
     mydirmanager = ResultDirManager()
-    mydirmanager.add_location('trajs', 'data/{0}/trajectories'.format(env_name), make_dir_if_none=True)
-    mydirmanager.add_location('isolated', 'data/{0}/isolated_frames'.format(env_name), make_dir_if_none=True)
+    mydirmanager.add_location('trajs', 'data/{0}'.format(env_name), make_dir_if_none=True)
 
     # Trajectory index
     traj_idx = 0
-    # list to hold state labels for all observations
-    all_traj_states = []
+    # Already printed this traj idx status?
+    printed = False
     # Collect observations from ntraj number of trajectories for a sequence of trajlen number of random actions
     while traj_idx < args.ntraj:
         if traj_idx % 10 == 0:
-            print('Done {} trajectories'.format(traj_idx))
+            if not printed:
+                print('Done {} trajectories'.format(traj_idx))
+                printed = True
+        else:
+            printed = False
         state = env.reset()
         # Var to hold the frames of a traj
         img = None
         # Make a dir for storing frames from the current traj
-        dir_dict = {'traj_num': traj_idx + 1}
+        dir_dict = {'{0}_traj_num'.format(dataset_name_prefix): traj_idx + 1}
         traj_dir_path = mydirmanager.make_dir_from_dict('trajs', dir_dict)
         # Add this location with full path as location name
         mydirmanager.add_location(traj_dir_path, traj_dir_path)
         # List to hold state labels
         traj_states = []
+        # List to hold actions
+        traj_actions = []
+        # List to hold traj observations
+        traj_observations = []
         for i in range(args.len):
             # Sample a random action
             action = env.action_space.sample()
             # Simulate a step
             observation, _, done, info = env.step(action)
-            # Save this observation frame to disk in two places (trajs and isolated)
-            obs_path = mydirmanager.next_path(traj_dir_path, 'obs_', '%s.npy')
-            obs_path_isolated = mydirmanager.next_path('isolated', 'obs_', '%s.npy')
-            np.save(obs_path, observation)
-            np.save(obs_path_isolated, observation)
+            # Add observation to tmp list
+            traj_observations.append(observation)
             # info is something we get when we use a mujoco env, NA for gym in built envs
             state = info["state"]
-            # Add state to list
+            # Add state and action to list
             traj_states.append(state)
-            all_traj_states.append(state)
+            traj_actions.append(action)
+            # Optional run-time viz
             if args.show:
                 # For the first time an image is created
                 if img is None:
@@ -87,16 +90,25 @@ if __name__ == '__main__':
                 plt.draw()
                 # print(state)
                 # breakpoint()
-            if args.terminate_at_done and done:
+            # Premature termination criteria
+            if done:
                 break
             # observation at t
             # state at t
             # action at t-1 (that took us from t-1 to t)
-        # Save labels for this trajectory as an array in the same folder
-        traj_labels_path = mydirmanager.get_file_path(traj_dir_path, 'traj_states.npy')
-        np.save(traj_labels_path, np.array(traj_states))
-        traj_idx += 1
+        # If went all the way, then save to disk
+        if len(traj_observations) == args.len:
+            for obs_np_array in traj_observations:
+                # Save this observation frame to disk
+                obs_path = mydirmanager.next_path(traj_dir_path, '{0}_observation_'.format(dataset_name_prefix), '%s.npy')
+                np.save(obs_path, obs_np_array)
+            # Save labels for this trajectory as an array in the same folder
+            traj_state_labels_path = mydirmanager.get_file_path(traj_dir_path, '{0}_traj_states.npy'.format(dataset_name_prefix))
+            np.save(traj_state_labels_path, np.array(traj_states))
+            traj_action_labels_path = mydirmanager.get_file_path(traj_dir_path, '{0}_traj_actions.npy'.format(dataset_name_prefix))
+            np.save(traj_action_labels_path, np.array(traj_actions))
+            traj_idx += 1
+        # Nothing to update
+        else:
+            continue
     env.close()
-    # Save all the labels in one big array for the isolated frames version
-    traj_labels_path = mydirmanager.get_file_path('isolated', 'states.npy')
-    np.save(traj_labels_path, np.array(all_traj_states))

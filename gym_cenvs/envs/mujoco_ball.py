@@ -4,6 +4,7 @@ from gym.envs.mujoco import mujoco_env
 import os
 
 
+# TODO: find a way of doing stronger domain rand on ball images
 class MujocoBall(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
         xml_path = os.path.abspath('gym_cenvs/assets/ball.xml')

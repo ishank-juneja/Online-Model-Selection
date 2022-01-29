@@ -8,6 +8,8 @@
         - dummy_ac      dummy       None
 -->
 <mujoco model="ball">
+  <!--  include bg texture-->
+  <include file="skybox.xml"/>
   <compiler coordinate="local" inertiafromgeom="true"/>
   <default>
     <joint damping="0.2"/>
