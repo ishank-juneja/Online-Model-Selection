@@ -3,7 +3,7 @@ import os
 import numpy as np
 from torchvision import transforms
 import torch
-
+import re
 from src.quaternion import qeuler, euler_to_quaternion
 import cv2
 import matplotlib.pyplot as plt
@@ -121,7 +121,6 @@ def image_augmentation(image):
     numpy_depth *= bones
     numpy_rgb *= bones[:, :, None]
 
-
     # Add snp noise
     if synthetic_data:
         numpy_depth[snp_idx] = snp_noise_depth
@@ -142,11 +141,6 @@ class ImageTrajectoryDataset(Dataset):
     def __init__(self, image_filename, state_filename, action_filename, data_config):
         self.data_config = data_config
         images = np.asarray(np.load(image_filename, allow_pickle=True))
-        import matplotlib.pyplot as plt
-        #plt.imshow(images[0, 0, :, :, :3].astype(np.float32))
-        #plt.show()
-        #plt.imshow(images[0, 0, :, :, 3].astype(np.float32))
-        #plt.show()
         images = torch.from_numpy(images)
         images = self.data_config.preprocess_obs_fn(images)
         states = torch.from_numpy(np.asarray(np.load(state_filename, allow_pickle=True)))
@@ -198,46 +192,46 @@ class ImageTrajectoryDataset(Dataset):
         return image.float(), self.states[item].float(), self.actions[item].float()
 
 
+def tryint(s):
+    try:
+        return int(s)
+    except:
+        return s
+
+
+def alphanum_key(s):
+    """ Turn a string into a list of string and number chunks.
+        "z23a" -> ["z", 23, "a"]
+    """
+    return [ tryint(c) for c in re.split('([0-9]+)', s) ]
+
+
+def sort_nicely(l):
+    """ Sort the given list in the way that humans expect.
+    """
+    l.sort(key=alphanum_key)
+
+
 def dataset_builder(data_config, data_identifier):
-    dirnames = os.listdir(data_config.data_dir)
-    dirnames.sort()
+    filenames = os.listdir(data_config.data_dir)
+    filenames.sort()
 
     action_files = []
     observation_files = []
     state_files = []
-    # Iterate over all the dirs containing trajectories
-    ntraj = 0
-    for dirname in dirnames:
-        # Find test/train dirs from among these
-        if data_identifier in dirname:
-            ntraj += 1
-    # Find length of each traj (all should be identical), nactions, and nstates
-    files = os.listdir(dirname)
-    traj_len = 0
-    for filename in files:
-        arr = np.load(filename)
-        if 'observation' in filename:
-            traj_len += 1
-            # Assume square frames
-            img_size, _, _ = arr.shape
-        elif 'action' in filename:
-            _, nactions = arr.shape
-        elif 'state' in filename:
-            _, nstates = arr.shape
-    # Allocate numpy arrays of required size
-    images = np.zeros((ntraj, traj_len, img_size, img_size, 3))
-    actions = np.zeros((ntraj, traj_len, nactions))
-    states = np.zeros((ntraj, traj_len, nstates))
-    # Fill up numpy arrays with observed stuff
-    # TODO: Finish this
-    for idx, dirname in enumerate(dirnames):
-        filenames = os.listdir(dirname)
-        for jdx, filename in enumerate(filenames):
-            images[idx, jdx, :, :, :] =
+    for filename in filenames:
+        if data_identifier in filename:
+            print(filename)
+            if 'actions' in filename:
+                action_files.append(os.path.join(data_config.data_dir, filename))
+            if 'observations' in filename:
+                observation_files.append(os.path.join(data_config.data_dir, filename))
+            if 'states' in filename:
+                state_files.append(os.path.join(data_config.data_dir, filename))
 
     datasets = []
-
-
+    if len(state_files) == 0:
+        state_files = [[]] * len(action_files)
 
     for observation_f, state_f, action_f in zip(observation_files, state_files, action_files):
         datasets.append(ImageTrajectoryDataset(observation_f, state_f, action_f, data_config))

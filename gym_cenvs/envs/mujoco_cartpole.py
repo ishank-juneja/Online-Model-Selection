@@ -27,6 +27,7 @@ class MujocoCartPoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
         # Must come after model init
         self.reset_model()
+        # 0 position is straight up in xml file
         self.init_qpos[1] += np.pi
         self.init_qpos[0] += 1.00
 

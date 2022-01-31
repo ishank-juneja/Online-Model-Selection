@@ -13,7 +13,7 @@ class ConkersEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.done = False
         # Number of links in chain link approximation of rope
         self.nlinks = 10
-        xml_path = os.path.join(os.path.dirname(__file__), '/home/ishank/Desktop/MM-LVSPC/gym_cenvs/assets/conkers.xml')
+        xml_path = os.path.abspath('gym_cenvs/assets/conkers.xml')
         mujoco_env.MujocoEnv.__init__(self, xml_path, 50)
         utils.EzPickle.__init__(self)
         self.reset_model()
@@ -85,14 +85,23 @@ class ConkersEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def get_goal(self):
         return [self.goal_x, self.goal_y]
 
-    # TODO: Add a free joint to the spherical conker to get the ground truth ball state in conkers
     def _get_state(self):
-        return np.concatenate([
+        # Old Tom version
+        # custom_state = np.concatenate([
+        #     self.sim.data.qpos,  # cart x pos
+        #     np.clip(self.sim.data.qvel, -10, 10),
+        #     np.clip(self.sim.data.qfrc_constraint, -10, 10)
+        # ]).ravel()
+        # Modified to return state of interest
+        # Keep returning cart state needed to rejection sample conkers initializations too close to the goal
+        # In addition return the sign flipped (for consistency) x cooord
+        # and the z coord (y coord in our view) of the conker
+        custom_state = np.concatenate([
             self.sim.data.qpos,  # cart x pos
-            np.clip(self.sim.data.qvel, -10, 10),
-            # TODO: Check about role of qfrc_constraint
-            np.clip(self.sim.data.qfrc_constraint, -10, 10)
+            -1 * self.get_body_com('conker')[:1],
+            self.get_body_com('conker')[2:]
         ]).ravel()
+        return custom_state
 
     def reset(self):
         self.done = False

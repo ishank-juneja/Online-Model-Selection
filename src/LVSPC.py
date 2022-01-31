@@ -7,7 +7,6 @@ import argparse
 from image_trajectory_dataset import dataset_builder
 from torch.utils.data import DataLoader, RandomSampler
 from arm_pytorch_utilities.rand import seed
-import numpy as np
 import os
 
 
@@ -70,7 +69,7 @@ seed(randseed=config.seed)
 writer = None
 # Use TensorBoardX object to log
 if args.log:
-    writer = SummaryWriter(flush_secs=20, log_dir='../runs/{}'.format(name))
+    writer = SummaryWriter(flush_secs=20, log_dir='runs/{}'.format(name))
 device = config.device
 
 if args.train or args.test or args.viz:

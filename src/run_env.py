@@ -45,6 +45,10 @@ if __name__ == '__main__':
     traj_idx = 0
     # Already printed this traj idx status?
     printed = False
+    # Lists to hold all actions/states/observations
+    all_actions = []
+    all_states = []
+    all_observations = []
     # Collect observations from ntraj number of trajectories for a sequence of trajlen number of random actions
     while traj_idx < args.ntraj:
         if traj_idx % 10 == 0:
@@ -72,13 +76,17 @@ if __name__ == '__main__':
             action = env.action_space.sample()
             # Simulate a step
             observation, _, done, info = env.step(action)
-            # Add observation to tmp list
-            traj_observations.append(observation)
             # info is something we get when we use a mujoco env, NA for gym in built envs
             state = info["state"]
+            # For conkers env we take out only the ball/sphere/conker coordinates from state
+            # to make our difficult test dataset
+            if 'Conkers' in env_name:
+                state = state[-2:]
             # Add state and action to list
             traj_states.append(state)
             traj_actions.append(action)
+            # Add observation to tmp list
+            traj_observations.append(observation)
             # Optional run-time viz
             if args.show:
                 # For the first time an image is created
@@ -88,8 +96,6 @@ if __name__ == '__main__':
                     img.set_data(observation[:, :, :3])
                 plt.pause(0.01)
                 plt.draw()
-                # print(state)
-                # breakpoint()
             # Premature termination criteria
             if done:
                 break
@@ -107,8 +113,18 @@ if __name__ == '__main__':
             np.save(traj_state_labels_path, np.array(traj_states))
             traj_action_labels_path = mydirmanager.get_file_path(traj_dir_path, '{0}_traj_actions.npy'.format(dataset_name_prefix))
             np.save(traj_action_labels_path, np.array(traj_actions))
+            # Add to consolidated data structure
+            all_observations.append(traj_observations)
+            all_actions.append(traj_actions)
+            all_states.append(traj_states)
             traj_idx += 1
         # Nothing to update
         else:
             continue
     env.close()
+    all_states_path = mydirmanager.get_file_path('trajs', 'all_{0}_states.npy'.format(dataset_name_prefix))
+    all_actions_path = mydirmanager.get_file_path('trajs', 'all_{0}_actions.npy'.format(dataset_name_prefix))
+    all_observations_path = mydirmanager.get_file_path('trajs', 'all_{0}_observations.npy'.format(dataset_name_prefix))
+    np.save(all_states_path, np.array(all_states))
+    np.save(all_actions_path, np.array(all_actions))
+    np.save(all_observations_path, np.array(all_observations))
