@@ -7,6 +7,11 @@ register(
 )
 
 register(
+    id='Kendama-v0',
+    entry_point='gym_cenvs.envs:KendamaEnv',
+)
+
+register(
     id='Conkers-v1',
     entry_point='gym_cenvs.envs:ConkersEnv',
     kwargs={'transparent_rope': True}

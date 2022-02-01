@@ -37,11 +37,13 @@ parser.add_argument("--data-dir", default="../data/trajectories/mujoco_cartpole"
 parser.add_argument("--log", action="store_true")
 parser.add_argument("--box", action="store_true")
 parser.add_argument("--do-control", action="store_true")
-parser.add_argument("--experiment", choices=["conkers", "kendama"])
+parser.add_argument("--experiment", choices=["conkers", "ball"])
 args = parser.parse_args()
 
 if args.experiment == 'conkers':
     from pendulum_analogy_config import Config
+elif args.experiment == 'ball':
+    from ball_config import Config
 else:
     raise ValueError("Invalid experiment choice")
 
@@ -116,7 +118,6 @@ if args.train or args.test or args.viz:
     if args.test:
         test_loss = trainer.test(test_loader)
         print("Test loss: {}".format(test_loss))
-
 
     if args.viz:
         print(args.viz_src)

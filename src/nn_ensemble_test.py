@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from src.pendulum_analogy_config import Config
+from src.ball_config import Config
 from src.models.base_model import BaseModel
 from src.models.UKVAE import UnscentedKalmanVariationalAutoencoder
 import numpy as np
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     # create a base model for testing
     myensemble = UnscentedKalmanVariationalAutoencoder(config, load_name='model_conkers_Feb01_08-49-58')
     # Get a frame from cartpole dataset
-    frame_file_names = os.listdir('data/MujocoCartpole-v0/test_traj_num_214/')
+    frame_file_names = os.listdir('data/MujocoBall-v0/test_traj_num_214/')
     frame_file_names = natural_sort(frame_file_names)
     for filename in frame_file_names:
         if 'observation' in filename:
