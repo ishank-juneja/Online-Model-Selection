@@ -159,7 +159,7 @@ class Config:
         self.action_max = torch.tensor(1.0, device=self.device)
         self.controller_cem_iters = 10
 
-        # Paramas for doing online GP learning with this simple model
+        # Params for doing online GP learning with this simple model
         self.do_online_learning = True
         self.use_online_GP = True
         self.use_online_NN = False
