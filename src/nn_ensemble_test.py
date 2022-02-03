@@ -18,10 +18,10 @@ if __name__ == '__main__':
     # Create pendulum analogy config object
     config = Config()
     # create a model for testing
-    myensemble = UnscentedKalmanVariationalAutoencoder(config, load_name='model_conkers_Feb02_13-29-51')
+    myensemble = UnscentedKalmanVariationalAutoencoder(config, load_name='model_conkers_Feb03_13-56-07')
     myensemble.test = True
     myensemble.encoder.cuda()
-    conkers_frame = np.load('/home/ishank/Desktop/MM-LVSPC/data/Conkers-v0/test_traj_num_70/test_observation_9.npy')
+    conkers_frame = np.load('/home/ishank/Desktop/MM-LVSPC/data/MujocoCartpole-v0/test_traj_num_70/test_observation_9.npy')
     plt.imshow(conkers_frame)
     plt.show()
     mu, stddev = myensemble.encode_single_observation(conkers_frame)

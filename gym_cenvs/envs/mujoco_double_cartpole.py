@@ -6,14 +6,14 @@ from mujoco_py.generated import const
 
 
 # TODO: document similar to cartpole
-class KendamaEnv(mujoco_env.MujocoEnv, utils.EzPickle):
+class MujocoDoubleCartPoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self, transparent_rope=False):
         self.goal_x = 0
         self.goal_y = 0
         self.done = False
         # Number of links in chain link approximation of rope
         self.nlinks = 10
-        xml_path = os.path.abspath('gym_cenvs/assets/kendama1D.xml')
+        xml_path = os.path.abspath('gym_cenvs/assets/double_cartpole.xml')
         mujoco_env.MujocoEnv.__init__(self, xml_path, 50)
         utils.EzPickle.__init__(self)
         self.reset_model()
@@ -31,7 +31,7 @@ class KendamaEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.do_simulation(action, self.frame_skip)
         state = self._get_state()
         ob = self._get_obs()
-        goal_cost, centre_cost = self.get_cost()
+        goal_cost, centre_cost = 0, 0
         collision = self.collision_check()
         #collision = 1 if goal_cost < 1e-1 else 0
 
@@ -65,7 +65,7 @@ class KendamaEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             if "target" in geom_concat:
                 if "mass" in geom_concat:
                     success = 1
-                if ("pole" in geom_concat) or ("cup" in geom_concat):
+                if ("pole" in geom_concat) or ("cart" in geom_concat):
                     fail = 1
 
         if success:
@@ -74,13 +74,13 @@ class KendamaEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             return 2
         return 0
 
-    def get_cost(self):
-        x, _, y = self.sim.data.site_xpos[0]
-        # Penalty to goal
-        goal_cost = (x + self.goal_x)**2 + (y - self.goal_y) ** 2
-        xx = self.sim.data.qpos[0]
-        centre_cost = np.clip(np.abs(xx) - 1.0, 0.0, None)
-        return goal_cost, centre_cost
+    # def get_cost(self):
+    #     x, _, y = self.sim.data.site_xpos[0]
+    #     # Penalty to goal
+    #     goal_cost = (x + self.goal_x)**2 + (y - self.goal_y) ** 2
+    #     xx = self.sim.data.qpos[0]
+    #     centre_cost = np.clip(np.abs(xx) - 1.0, 0.0, None)
+    #     return goal_cost, centre_cost
 
     def get_goal(self):
         return [self.goal_x, self.goal_y]
@@ -115,8 +115,8 @@ class KendamaEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # Now want the problem to be non trivial - can't start at goal, so will just
         # Rejection sample goal
         while initial_collision:
-            self.goal_x = -1 * self.get_body_com('cup')[0]
-            self.goal_y = self.get_body_com('cup')[2]
+            self.goal_x = np.random.uniform(low=0.0, high=1.5)
+            self.goal_y = np.random.uniform(low=-1, high=.1)
             self.set_state(
                 self.init_qpos + rand_mask * self.np_random.uniform(low=-0.25 * np.pi, high=0.25 * np.pi,
                                                                     size=self.model.nq),
@@ -126,7 +126,7 @@ class KendamaEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             # self.sim.model.body_pos[self.sim.model.body_name2id('target')] = [-self.goal_x, 0, self.goal_y]
             self.do_simulation([0], self.frame_skip)
             initial_collision = self.collision_check()
-            d, _ = self.get_cost()
+            d, _ = 0, 0
             # Check goal not too close to base
             goal = self.get_goal()
             base_x = self._get_state()[0]

@@ -23,6 +23,11 @@ register(
 )
 
 register(
+    id='MujocoDoubleCartpole-v0',
+    entry_point='gym_cenvs.envs:MujocoDoubleCartPoleEnv',
+)
+
+register(
     id='MujocoBall-v0',
     entry_point='gym_cenvs.envs:MujocoBall',
 )
