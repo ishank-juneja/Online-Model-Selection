@@ -221,7 +221,6 @@ def dataset_builder(data_config, data_identifier):
     state_files = []
     for filename in filenames:
         if data_identifier in filename:
-            print(filename)
             if 'actions' in filename:
                 action_files.append(os.path.join(data_config.data_dir, filename))
             if 'observations' in filename:

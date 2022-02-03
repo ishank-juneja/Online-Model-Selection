@@ -1,5 +1,5 @@
 from src.agents.trainer import Trainer
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 import signal
 import sys
@@ -68,10 +68,10 @@ else:
 print('Model name: {}'.format(name))
 # set seed
 seed(randseed=config.seed)
-writer = None
+mywriter = None
 # Use TensorBoardX object to log
 if args.log:
-    writer = SummaryWriter(flush_secs=20, log_dir='runs/{}'.format(name))
+    mywriter = SummaryWriter(flush_secs=20, log_dir='runs/{}'.format(name))
 device = config.device
 
 if args.train or args.test or args.viz:
@@ -86,7 +86,6 @@ if args.train or args.test or args.viz:
     else:
         if args.train:
             train_dataset = dataset_builder(config.data_config, 'train')
-            print(len(train_dataset))
             train_sampler = RandomSampler(train_dataset)
             train_loader = DataLoader(train_dataset, sampler=train_sampler,
                                       batch_size=config.batch_size,
@@ -101,7 +100,7 @@ if args.train or args.test or args.viz:
                                      num_workers=config.num_workers,
                                      drop_last=True)
 
-    trainer = Trainer(name, config)
+    trainer = Trainer(name, config, mywriter)
     trainer.model.train()
     if args.load:
         print('Loading Model...')
@@ -113,6 +112,7 @@ if args.train or args.test or args.viz:
         print("Training...")
         trainer.run(train_loader, test_loader)
         test_loss = trainer.test(train_loader)
+
         print("Final train loss: {}".format(test_loss))
 
     if args.test:

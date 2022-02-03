@@ -1,7 +1,5 @@
-import torch
-from torch import nn
-from src.ball_config import Config
-from src.models.base_model import BaseModel
+import torch.cuda
+from src.pendulum_analogy_config import Config
 from src.models.UKVAE import UnscentedKalmanVariationalAutoencoder
 import numpy as np
 import os
@@ -19,16 +17,34 @@ def natural_sort(l):
 if __name__ == '__main__':
     # Create pendulum analogy config object
     config = Config()
-    # create a base model for testing
-    myensemble = UnscentedKalmanVariationalAutoencoder(config, load_name='model_conkers_Feb01_08-49-58')
+    # create a model for testing
+    myensemble = UnscentedKalmanVariationalAutoencoder(config, load_name='model_conkers_Feb02_13-29-51')
+    myensemble.test = True
+    myensemble.encoder.cuda()
+    conkers_frame = np.load('/home/ishank/Desktop/MM-LVSPC/data/Conkers-v0/test_traj_num_70/test_observation_9.npy')
+    plt.imshow(conkers_frame)
+    plt.show()
+    mu, stddev = myensemble.encode_single_observation(conkers_frame)
+    print(stddev)
     # Get a frame from cartpole dataset
-    frame_file_names = os.listdir('data/MujocoBall-v0/test_traj_num_214/')
-    frame_file_names = natural_sort(frame_file_names)
-    for filename in frame_file_names:
-        if 'observation' in filename:
-            frame = np.load(os.path.join('data/MujocoCartpole-v0/test_traj_num_214/', filename))
-            plt.imshow(frame)
-            plt.show()
-            myensemble.encoder.cuda()
-            mu, std = myensemble.encode_single_observation(frame)
-            print(mu.reshape(10, 3).mean(axis=0))
+    # cartpole_test_obs = np.load('data/MujocoCartpole-v0-Ishank/all_test_observations.npy')
+    # N, T, _, _, _ = cartpole_test_obs.shape
+    # cartpole_stddev = 0
+    # for idx in range(N//10):
+    #     for jdx in range(T):
+    #         frame = cartpole_test_obs[idx, jdx, :, :, :]
+    #         mu, stddev = myensemble.encode_single_observation(frame)
+    #         cartpole_stddev += stddev.sum()
+    # torch.cuda.empty_cache()
+    # print("Cartpole: {0}".format(10*cartpole_stddev/(N*T)))
+    # conkers_test_obs = np.load('data/Conkers-v0/all_test_observations.npy')
+    # N, T, _, _, _ = conkers_test_obs.shape
+    # conkers_stddev = 0
+    # for idx in range(N):
+    #     for jdx in range(T):
+    #         frame = conkers_test_obs[idx, jdx, :, :, :]
+    #         mu, stddev = myensemble.encode_single_observation(frame)
+    #         conkers_stddev += stddev.sum()
+    # print("Conkers: {0}".format(conkers_stddev/(N*T)))
+
+

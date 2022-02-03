@@ -8,11 +8,10 @@
   <size nstack="3000"/>
   <worldbody>
     <camera name="rgb" mode="fixed" pos="0 4 0.0" euler="-90 0 180"/>
-    <body name="cart" pos="0 0 0">
+    <body name="cup" pos="0 0 0">
       <joint axis="1 0 0" limited="true" margin="0.01" name="slider" pos="0 0 0" range="-20 20" stiffness="0" type="slide"/>
-      <!--      the actuation in the conkers environment is identical to the one in cartpole with the cart
-      attached to the top-most link/pole-->
-      <geom name="cart" pos="0 0 0" quat="0.707 0 0.707 0" size="0.01 0.01" rgba="0 0 0 1" type="capsule" mass=".5"/>
+      <!-- cup environment is similar to conkers environment but with the geom of a cup replacing cart -->
+      <geom name="cup" pos="0 0 0" quat="0.707 0 0.707 0" size="0.1 0.1" rgba="1 1 1 1" type="capsule" mass=".5"/>
       <body name="pole" pos="0 0 0">
         <joint axis="0 1 0" name="hinge" pos="0 0 0" type="hinge" stiffness="0"/>
         <geom fromto="0 0 0 0 0 0.1" name="gpole1" rgba="1 1 1 1" size="0.1 0.05" mass="0.05" type="capsule"/>
