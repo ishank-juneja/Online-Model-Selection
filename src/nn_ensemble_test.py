@@ -1,6 +1,6 @@
 import torch.cuda
-from src.pendulum_analogy_config import Config
-from src.models.UKVAE import UnscentedKalmanVariationalAutoencoder
+from pendulum_analogy_config import Config
+from models.UKVAE import UnscentedKalmanVariationalAutoencoder
 import numpy as np
 import os
 import matplotlib.pyplot as plt
