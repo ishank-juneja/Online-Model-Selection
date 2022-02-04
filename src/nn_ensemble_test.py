@@ -4,6 +4,8 @@ from models.UKVAE import UnscentedKalmanVariationalAutoencoder
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+import sys
+sys.path.append('home/ijuneja/MM-LVSPC')
 
 
 import re
