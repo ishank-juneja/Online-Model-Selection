@@ -60,11 +60,11 @@ if __name__ == '__main__':
         state = env.reset()
         # Var to hold the frames of a traj
         img = None
-        # Make a dir for storing frames from the current traj
-        dir_dict = {'{0}_traj_num'.format(dataset_name_prefix): traj_idx + 1}
-        traj_dir_path = mydirmanager.make_dir_from_dict('trajs', dir_dict)
-        # Add this location with full path as location name
-        mydirmanager.add_location(traj_dir_path, traj_dir_path)
+        # # Make a dir for storing frames from the current traj
+        # dir_dict = {'{0}_traj_num'.format(dataset_name_prefix): traj_idx + 1}
+        # traj_dir_path = mydirmanager.make_dir_from_dict('trajs', dir_dict)
+        # # Add this location with full path as location name
+        # mydirmanager.add_location(traj_dir_path, traj_dir_path)
         # List to hold state labels
         traj_states = []
         # List to hold actions
@@ -104,15 +104,15 @@ if __name__ == '__main__':
             # action at t-1 (that took us from t-1 to t)
         # If went all the way, then save to disk
         if len(traj_observations) == args.len:
-            for obs_np_array in traj_observations:
-                # Save this observation frame to disk
-                obs_path = mydirmanager.next_path(traj_dir_path, '{0}_observation_'.format(dataset_name_prefix), '%s.npy')
-                np.save(obs_path, obs_np_array)
+            # for obs_np_array in traj_observations:
+            #     # Save this observation frame to disk
+            #     obs_path = mydirmanager.next_path(traj_dir_path, '{0}_observation_'.format(dataset_name_prefix), '%s.npy')
+            #     np.save(obs_path, obs_np_array)
             # Save labels for this trajectory as an array in the same folder
-            traj_state_labels_path = mydirmanager.get_file_path(traj_dir_path, '{0}_traj_states.npy'.format(dataset_name_prefix))
-            np.save(traj_state_labels_path, np.array(traj_states))
-            traj_action_labels_path = mydirmanager.get_file_path(traj_dir_path, '{0}_traj_actions.npy'.format(dataset_name_prefix))
-            np.save(traj_action_labels_path, np.array(traj_actions))
+            # traj_state_labels_path = mydirmanager.get_file_path(traj_dir_path, '{0}_traj_states.npy'.format(dataset_name_prefix))
+            # np.save(traj_state_labels_path, np.array(traj_states))
+            # traj_action_labels_path = mydirmanager.get_file_path(traj_dir_path, '{0}_traj_actions.npy'.format(dataset_name_prefix))
+            # np.save(traj_action_labels_path, np.array(traj_actions))
             # Add to consolidated data structure
             all_observations.append(traj_observations)
             all_actions.append(traj_actions)

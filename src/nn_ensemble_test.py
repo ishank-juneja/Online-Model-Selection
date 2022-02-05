@@ -1,11 +1,8 @@
 import torch.cuda
-from pendulum_analogy_config import Config
 from models.UKVAE import UnscentedKalmanVariationalAutoencoder
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-import sys
-sys.path.append('home/ijuneja/MM-LVSPC')
 
 
 import re
@@ -31,24 +28,27 @@ ball_test_states = 'data/MujocoBall-v0/all_test_states.npy'
 cartpole_test_observations = 'data/MujocoCartpole-v0-25/all_test_observations.npy'
 cartpole_test_states = 'data/MujocoCartpole-v0-25/all_test_states.npy'
 
-test_data = np.load(cartpole_test_observations)
-test_states = np.load(cartpole_test_states)
-N, T, nstates = test_states.shape
 
+# create a model for testing
+model_name = 'model_ball_Feb05_12-46-00'
+# model_name = 'model_conkers_Feb05_13-33-50'
+if 'conkers' in model_name:
+    from src.pendulum_analogy_config import Config
+    test_data = np.load(cartpole_test_observations)
+    test_states = np.load(cartpole_test_states)
+elif 'ball' in model_name:
+    from src.ball_config import Config
+    test_data = np.load(ball_test_observations)
+    test_states = np.load(ball_test_states)
 # Create pendulum analogy config object
 config = Config()
-# Use CPU at test time
-config.device = 'cpu'
-# create a model for testing
-# myensemble = UnscentedKalmanVariationalAutoencoder(config, load_name='model_conkers_Feb03_20-40-20')
-# myensemble = UnscentedKalmanVariationalAutoencoder(config, load_name='model_conkers_Feb03_13-56-07')
-# myensemble = UnscentedKalmanVariationalAutoencoder(config, load_name='model_conkers_Feb02_13-29-51')
-# myensemble = UnscentedKalmanVariationalAutoencoder(config, load_name='model_conkers_Feb03_22-14-08')
-# myensemble = UnscentedKalmanVariationalAutoencoder(config, load_name='model_conkers_Feb03_23-44-36')
-# myensemble = UnscentedKalmanVariationalAutoencoder(config, load_name='model_conkers_Feb04_00-20-40')
-myensemble = UnscentedKalmanVariationalAutoencoder(config, load_name='model_conkers_Feb04_00-20-40')
+
+N, T, nstates = test_states.shape
+myensemble = UnscentedKalmanVariationalAutoencoder(config, load_name=model_name)
 myensemble.test = True
-# myensemble.encoder.cuda()
+# Use CPU at test time
+# config.device = 'cpu'
+myensemble.encoder.cuda()
 
 avg_stddev = 0.0
 avg_rmse = 0.0
@@ -61,8 +61,14 @@ for idx in range(N):
         test_obs = test_data[idx, jdx, :, :, :]
         state_label = test_states[idx, jdx, :]
         mu, stddev = myensemble.encode_single_observation(test_obs)
-        avg_rmse += np.sqrt(np.sum(np.square(mu.detach().numpy() - state_label[:3])))
-        avg_stddev += stddev.sum()
+        # avg_rmse += np.sqrt(np.sum(np.square(mu.detach().numpy() - state_label[:3])))
+        # print(mu.reshape(10, 3))
+        # print(stddev.reshape(10, 3))
+        print(mu)
+        print(stddev)
+        # avg_stddev += stddev.sum()
+        plt.imshow(test_obs)
+        plt.show()
 print("Average RMSE between observable part of label and prediction {0}".format(avg_rmse/(N*T)))
 print("Average std dev for observations {0}".format(avg_stddev/(N*T)))
 

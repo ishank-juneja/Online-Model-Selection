@@ -39,9 +39,9 @@ class MujocoBall(mujoco_env.MujocoEnv, utils.EzPickle):
         ob = self._get_obs()
         state = self._get_state()
         # Terminate if the ball goes out of view
-        out_of_view_x = np.abs(self.sim.data.qpos[0]) > 1.7 # Earlier tried 2.5
+        out_of_view_x = np.abs(self.sim.data.qpos[0]) > 2.5 # Earlier tried 2.5
         # On sided ineq since always falls down
-        out_of_view_z = self.sim.data.qpos[2] < -2.0
+        out_of_view_z = self.sim.data.qpos[2] < -2.5
         out_of_view = out_of_view_x or out_of_view_z
         # self.done is never set to True since there is no task
         done = out_of_view or self.done
