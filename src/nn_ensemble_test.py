@@ -30,7 +30,7 @@ cartpole_test_states = 'data/MujocoCartpole-v0-25/all_test_states.npy'
 
 
 # create a model for testing
-model_name = 'model_ball_Feb05_12-46-00'
+model_name = 'model_ball_Feb05_12-46-00.pt'
 # model_name = 'model_conkers_Feb05_13-33-50'
 if 'conkers' in model_name:
     from src.pendulum_analogy_config import Config

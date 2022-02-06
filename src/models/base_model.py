@@ -143,7 +143,7 @@ class BaseModel(nn.Module):
     def save_model(self, name):
         if name is None:
             warnings.warn('Saving but name is None')
-        torch.save(self.state_dict(), 'models/CNN/{}'.format(name))
+        torch.save(self.state_dict(), 'models/CNN/{}.pt'.format(name))
 
     def load_model(self, model_name):
         self.load_state_dict(torch.load('models/CNN/{}'.format(model_name), map_location=self.config.device))
