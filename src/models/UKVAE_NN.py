@@ -129,7 +129,7 @@ class UnscentedKalmanVariationalAutoencoderNNUncertainty(UnscentedKalmanVariatio
             qx = MultivariateNormal(x_mu, x_sigma)
             x = qx.rsample()
 
-            # Compute ll for first obs
+            # Compute ll for first obs_frame
             pz = Normal(self.emission(x), self.z_logvar.exp().sqrt().unsqueeze(0))
             log_likelihood += pz.log_prob(z0).sum()
 

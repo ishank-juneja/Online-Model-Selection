@@ -136,13 +136,19 @@ class ResultDirManager:
 
     # Make a new folder with name based on a dictionary of paramaters
     # For instance {size: 5, length 2} will make a folder: size_5_length_2
-    def make_dir_from_dict(self, loc_name: str, mydict: dict):
+    def make_dir_from_dict(self, loc_name: str, mydict: dict, prefix: str = None, suffix: str = None):
         if self.loc_exists(loc_name):
             dir_name = ""
             for key, value in mydict.items():
                 dir_name += key + '_' + str(value) + '_'
+            # Remove trailing '_'
+            dir_name = dir_name[:-1]
+            if prefix is not None:
+                dir_name = prefix + dir_name
+            if suffix is not None:
+                dir_name = dir_name + suffix
             # Assemble path, skip the end point `_`
-            dir_path = os.path.join(self.get_abs_path(loc_name), dir_name[:-1])
+            dir_path = os.path.join(self.get_abs_path(loc_name), dir_name)
             self.make_fresh_dir(loc_name, dir_path)
             return dir_path
 

@@ -44,7 +44,7 @@ if __name__ == '__main__':
     dataset_name_prefix = args.dataset_type
     # Create dir manager object for saving results
     mydirmanager = ResultDirManager()
-    mydirmanager.add_location('cur_dataset', 'data/{0}/{1}'.format(env_name, dataset_name_prefix), make_dir_if_none=True)
+    mydirmanager.add_location('cur_dataset', 'data/{0}'.format(env_name), make_dir_if_none=True)
     # Create an object for data augmentation
     myaugmenter = SimDomainRandomization()
 
@@ -53,9 +53,6 @@ if __name__ == '__main__':
     traj_idx = 0
     # Already printed this traj idx status?
     printed = False
-    # Lists to hold all actions/states
-    all_actions = []
-    all_states = []
     # Collect observations from ntraj number of trajectories for a sequence of trajlen number of random actions
     while traj_idx < args.ntraj:
         if traj_idx % 10 == 0:
@@ -82,7 +79,7 @@ if __name__ == '__main__':
             state = info["state"]
             # For conkers and kendama env we take out only the ball/sphere/conker coordinates from state
             # to make an ood images test dataset
-            if 'Conkers' or 'Kendama' in env_name:
+            if 'Conkers' in env_name or 'Kendama' in env_name:
                 state = state[-2:]
             # Add state and action to list
             traj_states.append(state)
@@ -105,33 +102,34 @@ if __name__ == '__main__':
             # observation at t
             # state at t
             # action at t-1 (that took us from t-1 to t)
-        # If traj was len long, then save to disk
+        # If traj was len long, only then save to disk
         if len(traj_observations) == args.len:
-            for obs_step_idx, obs in enumerate(traj_observations):
-                base_path = mydirmanager.get_file_path_from_dict('cur_dataset', {'traj': traj_idx + 1, 'step': obs_step_idx + 1})
-                # Path to original observation image obtained from simulator
-                og_path = base_path + '_og.npy'
-                np.save(og_path, obs)
-                # generate random number between 1 and 3
-                aug_type = random.randint(1, 2)
+            # Create a dir to store observations from this trajectory
+            traj_dir_path = mydirmanager.make_dir_from_dict('cur_dataset', {'_traj': traj_idx + 1},
+                                                            prefix=args.dataset_type)
+            # If augmented version of trajectory frames is being written, then make dir for it
+            if args.augmentation:
+                augmented_traj_dir_path = mydirmanager.make_dir_from_dict('cur_dataset', {'_traj': traj_idx + 1},
+                                                                          prefix=args.dataset_type, suffix='_augmented')
+            for obs_step_idx, obs_frame in enumerate(traj_observations):
+                obs_path = traj_dir_path + '/observation_step_{0}.npy'.format(obs_step_idx + 1)
+                np.save(obs_path, obs_frame)
                 if args.augmentation:
-                    if aug_type == 1:
-                        obs_checker1 = myaugmenter.checkerboard_type1(obs)
-                        checker1_path = base_path + '_checker1.npy'
-                        np.save(checker1_path, obs_checker1)
-                    elif aug_type == 2:
-                        obs_checker2 = myaugmenter.checkerboard_type2(obs)
-                        checker2_path = base_path + '_checker2.npy'
-                        np.save(checker2_path, obs_checker2)
-            # Add states and actions to consolidated data structure
-            all_actions.append(traj_actions)
-            all_states.append(traj_states)
+                    obs_checker = myaugmenter.checkerboard_type2(obs_frame)
+                    checker_path = augmented_traj_dir_path + '/observation_step_{0}.npy'.format(obs_step_idx + 1)
+                    np.save(checker_path, obs_checker)
+            # Save corresponding states and actions in this traj's folder
+            actions_path = traj_dir_path + '/traj_actions.npy'
+            states_path = traj_dir_path + '/traj_states.npy'
+            np.save(actions_path, np.array(traj_actions))
+            np.save(states_path, np.array(traj_states))
+            if args.augmentation:
+                augmented_actions_path = augmented_traj_dir_path + '/traj_actions.npy'
+                augmented_states_path = augmented_traj_dir_path + '/traj_states.npy'
+                np.save(augmented_actions_path, np.array(traj_actions))
+                np.save(augmented_states_path, np.array(traj_states))
             traj_idx += 1
         else:
             # Nothing to update
             continue
     env.close()
-    all_states_path = mydirmanager.get_file_path('cur_dataset', 'all_{0}_states.npy'.format(dataset_name_prefix))
-    all_actions_path = mydirmanager.get_file_path('cur_dataset', 'all_{0}_actions.npy'.format(dataset_name_prefix))
-    np.save(all_states_path, np.array(all_states))
-    np.save(all_actions_path, np.array(all_actions))

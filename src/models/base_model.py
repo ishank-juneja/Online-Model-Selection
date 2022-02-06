@@ -58,12 +58,6 @@ class BaseModel(nn.Module):
             z_mu = z_mu.reshape(N, T, -1)
             z_std = z_var.sqrt().reshape(N, T, -1)
 
-
-        # need to swap order to be sine, cosine, x
-        # TODO can just do this in data -- this is only for cartpole environment -- was trained without thsi
-        #z_mu = torch.cat((z_mu[:, :, 1:], z_mu[:, :, 0].unsqueeze(2)), 2)
-        #z_std = torch.cat((z_std[:, :, 1:], z_std[:, :, 0].unsqueeze(2)), 2)
-
         return z_mu, z_std
 
     def encode_ensemble(self, observations):
