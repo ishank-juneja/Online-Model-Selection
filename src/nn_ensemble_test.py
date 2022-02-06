@@ -3,9 +3,15 @@ from models.UKVAE import UnscentedKalmanVariationalAutoencoder
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-
-
+import argparse
 import re
+
+parser = argparse.ArgumentParser()
+# Name of model being tested
+parser.add_argument("--cnn-name", type=str)
+# Whether to combine together uncertainties
+parser.add_argument("--combine", action="store_true")
+args = parser.parse_args()
 
 def natural_sort(l):
     convert = lambda text: int(text) if text.isdigit() else text.lower()
@@ -30,7 +36,7 @@ cartpole_test_states = 'data/MujocoCartpole-v0-25/all_test_states.npy'
 
 
 # create a model for testing
-model_name = 'model_ball_Feb05_12-46-00.pt'
+model_name = args.cnn_name
 # model_name = 'model_conkers_Feb05_13-33-50'
 if 'conkers' in model_name:
     from src.pendulum_analogy_config import Config
@@ -43,9 +49,13 @@ elif 'ball' in model_name:
 # Create pendulum analogy config object
 config = Config()
 
-N, T, nstates = test_states.shape
+N, T, _ = test_states.shape
+nstates = config.observation_dimension
 myensemble = UnscentedKalmanVariationalAutoencoder(config, load_name=model_name)
-myensemble.test = True
+if args.combine:
+    myensemble.test = True
+else:
+    myensemble.test = False
 # Use CPU at test time
 # config.device = 'cpu'
 myensemble.encoder.cuda()
@@ -62,10 +72,12 @@ for idx in range(N):
         state_label = test_states[idx, jdx, :]
         mu, stddev = myensemble.encode_single_observation(test_obs)
         # avg_rmse += np.sqrt(np.sum(np.square(mu.detach().numpy() - state_label[:3])))
-        # print(mu.reshape(10, 3))
-        # print(stddev.reshape(10, 3))
-        print(mu)
-        print(stddev)
+        if not args.combine:
+            print(mu.reshape(10, nstates))
+            print(stddev.reshape(10, nstates))
+        else:
+            print(mu)
+            print(stddev)
         # avg_stddev += stddev.sum()
         plt.imshow(test_obs)
         plt.show()

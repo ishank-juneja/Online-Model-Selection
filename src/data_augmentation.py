@@ -15,7 +15,7 @@ class SimDomainRandomization:
     # Function to apply a background augmentation, assumes everything 0 in sim frame is FG and rest is BG
     # Also assumes R=G=B i.e. Black and White images from sim
     # Frame is uint8 type image
-    def apply_bag_augmentation(self, frame, new_bg):
+    def apply_bg_augmentation(self, frame, new_bg):
         # Find shape of square frame
         frame_size, _, _ = frame.shape
         # Take the thresholded negative of the image
@@ -47,7 +47,7 @@ class SimDomainRandomization:
         mytile = np.vstack((row1, row2))
         checkerboard = np.tile(mytile, (sqrt_side // 2, sqrt_side // 2))
         RGB_checkerboard = np.repeat(checkerboard[:, :, np.newaxis], 3, axis=2)
-        bg_augmented = self.apply_bag_augmentation(frame, RGB_checkerboard)
+        bg_augmented = self.apply_bg_augmentation(frame, RGB_checkerboard)
         return self.add_salt_pepper(bg_augmented)
 
     # Checkerboard pattern 2 with larger squares
@@ -64,7 +64,7 @@ class SimDomainRandomization:
         mytile = np.vstack((row1, row2))
         checkerboard = np.tile(mytile, (sqrt_side // 4, sqrt_side // 4))
         RGB_checkerboard = np.repeat(checkerboard[:, :, np.newaxis], 3, axis=2)
-        bg_augmented = self.apply_bag_augmentation(frame, RGB_checkerboard)
+        bg_augmented = self.apply_bg_augmentation(frame, RGB_checkerboard)
         return self.add_salt_pepper(bg_augmented)
 
     # Reflect about the major diagonal aka the line y=-x and update state accordingly

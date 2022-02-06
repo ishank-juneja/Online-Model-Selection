@@ -1,5 +1,5 @@
 """
-Generating data for pendulum and cartpole using OpenAI gym
+Running mujoco-gym environments
 """
 
 # Some of these import are needed even they haven't been used explicitly here
