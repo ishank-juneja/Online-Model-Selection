@@ -1,4 +1,11 @@
 *.npy
+*.png
+*.pt
 models/
 data/
 data_archive/
+build/
+runs/
+mmlvspc.egg-info/
+arm_pytorch_utilities/
+.idea/
