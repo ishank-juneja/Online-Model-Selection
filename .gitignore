@@ -1,0 +1,4 @@
+*.npy
+models/
+data/
+data_archive/
