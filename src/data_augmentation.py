@@ -80,8 +80,8 @@ class SimDomainRandomization:
         # Extract side length of square frame
         side, _, _ = frame.shape
         # Pre-decide that a random number of pixels between 2*side and 10*side are going to be randomly put to 0/255
-        rand_255 = randint(side, 10*side)
-        rand_0 = randint(side, 10*side)
+        rand_255 = randint(side, 2*side)
+        rand_0 = randint(side, 2*side)
         # Pre-allocate corrupted frame
         cur_frame = frame.copy()
         for idx in range(rand_255):

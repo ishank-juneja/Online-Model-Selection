@@ -119,6 +119,21 @@ class ResultDirManager:
                 return True
         os.makedirs(abs_dir_path)
 
+    # Return the absolute path to a file based on a certain dict
+    def get_file_path_from_dict(self, loc_name: str, mydict: dict, prefix: str = None, suffix: str = None):
+        if self.loc_exists(loc_name):
+            fpath = ""
+            if prefix is not None:
+                fpath += prefix
+            for key, value in mydict.items():
+                fpath += key + '_' + str(value) + '_'
+            # Remove trailing '_'
+            fpath = fpath[:-1]
+            if suffix is not None:
+                fpath = fpath + suffix
+            fpath = os.path.join(self.get_abs_path(loc_name), fpath)
+            return fpath
+
     # Make a new folder with name based on a dictionary of paramaters
     # For instance {size: 5, length 2} will make a folder: size_5_length_2
     def make_dir_from_dict(self, loc_name: str, mydict: dict):
@@ -126,6 +141,7 @@ class ResultDirManager:
             dir_name = ""
             for key, value in mydict.items():
                 dir_name += key + '_' + str(value) + '_'
+            # Assemble path, skip the end point `_`
             dir_path = os.path.join(self.get_abs_path(loc_name), dir_name[:-1])
             self.make_fresh_dir(loc_name, dir_path)
             return dir_path

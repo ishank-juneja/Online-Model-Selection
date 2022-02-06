@@ -3,6 +3,8 @@ Running mujoco-gym environments
 """
 
 # Some of these import are needed even they haven't been used explicitly here
+import random
+
 import gym
 # pycharm may not highlight this one but it is needed
 import gym_cenvs
@@ -11,13 +13,16 @@ import argparse
 import matplotlib.pyplot as plt
 from results_dir_manager import ResultDirManager
 from arm_pytorch_utilities.rand import seed
+from data_augmentation import SimDomainRandomization
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # Pass name of environment from within file gym_cenvs __init__.py
     parser.add_argument("--env", help="gym environment")
     # prefix for file names to be saved
-    parser.add_argument("--name-traj", help="name of loaded/saved trajectories", default=None)
+    parser.add_argument("--dataset-type", help="either train or test", choices=['train', 'test'])
+    # Specify whether to do augmentations while writing dataset
+    parser.add_argument("--augmentation", action="store_true")
     # Number of trajectories being used to get the desired images
     parser.add_argument("--ntraj", default=100, help="Number of trajectories", type=int)
     # Actions in each traj
@@ -36,19 +41,21 @@ if __name__ == '__main__':
     env.action_space.seed(args.seed)
     env.reset()
     # Get name of dataset type (test/train)
-    dataset_name_prefix = args.name_traj
+    dataset_name_prefix = args.dataset_type
     # Create dir manager object for saving results
     mydirmanager = ResultDirManager()
-    mydirmanager.add_location('trajs', 'data/{0}'.format(env_name), make_dir_if_none=True)
+    mydirmanager.add_location('cur_dataset', 'data/{0}/{1}'.format(env_name, dataset_name_prefix), make_dir_if_none=True)
+    # Create an object for data augmentation
+    myaugmenter = SimDomainRandomization()
+
 
     # Trajectory index
     traj_idx = 0
     # Already printed this traj idx status?
     printed = False
-    # Lists to hold all actions/states/observations
+    # Lists to hold all actions/states
     all_actions = []
     all_states = []
-    all_observations = []
     # Collect observations from ntraj number of trajectories for a sequence of trajlen number of random actions
     while traj_idx < args.ntraj:
         if traj_idx % 10 == 0:
@@ -60,14 +67,9 @@ if __name__ == '__main__':
         state = env.reset()
         # Var to hold the frames of a traj
         img = None
-        # # Make a dir for storing frames from the current traj
-        # dir_dict = {'{0}_traj_num'.format(dataset_name_prefix): traj_idx + 1}
-        # traj_dir_path = mydirmanager.make_dir_from_dict('trajs', dir_dict)
-        # # Add this location with full path as location name
-        # mydirmanager.add_location(traj_dir_path, traj_dir_path)
-        # List to hold state labels
+        # List to hold traj state labels
         traj_states = []
-        # List to hold actions
+        # List to hold traj actions
         traj_actions = []
         # List to hold traj observations
         traj_observations = []
@@ -76,18 +78,18 @@ if __name__ == '__main__':
             action = env.action_space.sample()
             # Simulate a step
             observation, _, done, info = env.step(action)
-            # info is something we get when we use a mujoco env, NA for gym in built envs
+            # info is a dict from a mujoco env, NA for gym in built envs
             state = info["state"]
-            # For conkers env we take out only the ball/sphere/conker coordinates from state
-            # to make our difficult test dataset
-            if 'Conkers' in env_name:
+            # For conkers and kendama env we take out only the ball/sphere/conker coordinates from state
+            # to make an ood images test dataset
+            if 'Conkers' or 'Kendama' in env_name:
                 state = state[-2:]
             # Add state and action to list
             traj_states.append(state)
             traj_actions.append(action)
             # Add observation to tmp list
             traj_observations.append(observation)
-            # Optional run-time viz
+            # Optional run-time matplotlib viz
             if args.show:
                 # For the first time an image is created
                 if img is None:
@@ -99,32 +101,37 @@ if __name__ == '__main__':
             # Premature termination criteria
             if done:
                 break
+            # Note: We save
             # observation at t
             # state at t
             # action at t-1 (that took us from t-1 to t)
-        # If went all the way, then save to disk
+        # If traj was len long, then save to disk
         if len(traj_observations) == args.len:
-            # for obs_np_array in traj_observations:
-            #     # Save this observation frame to disk
-            #     obs_path = mydirmanager.next_path(traj_dir_path, '{0}_observation_'.format(dataset_name_prefix), '%s.npy')
-            #     np.save(obs_path, obs_np_array)
-            # Save labels for this trajectory as an array in the same folder
-            # traj_state_labels_path = mydirmanager.get_file_path(traj_dir_path, '{0}_traj_states.npy'.format(dataset_name_prefix))
-            # np.save(traj_state_labels_path, np.array(traj_states))
-            # traj_action_labels_path = mydirmanager.get_file_path(traj_dir_path, '{0}_traj_actions.npy'.format(dataset_name_prefix))
-            # np.save(traj_action_labels_path, np.array(traj_actions))
-            # Add to consolidated data structure
-            all_observations.append(traj_observations)
+            for obs_step_idx, obs in enumerate(traj_observations):
+                base_path = mydirmanager.get_file_path_from_dict('cur_dataset', {'traj': traj_idx + 1, 'step': obs_step_idx + 1})
+                # Path to original observation image obtained from simulator
+                og_path = base_path + '_og.npy'
+                np.save(og_path, obs)
+                # generate random number between 1 and 3
+                aug_type = random.randint(1, 2)
+                if args.augmentation:
+                    if aug_type == 1:
+                        obs_checker1 = myaugmenter.checkerboard_type1(obs)
+                        checker1_path = base_path + '_checker1.npy'
+                        np.save(checker1_path, obs_checker1)
+                    elif aug_type == 2:
+                        obs_checker2 = myaugmenter.checkerboard_type2(obs)
+                        checker2_path = base_path + '_checker2.npy'
+                        np.save(checker2_path, obs_checker2)
+            # Add states and actions to consolidated data structure
             all_actions.append(traj_actions)
             all_states.append(traj_states)
             traj_idx += 1
-        # Nothing to update
         else:
+            # Nothing to update
             continue
     env.close()
-    all_states_path = mydirmanager.get_file_path('trajs', 'all_{0}_states.npy'.format(dataset_name_prefix))
-    all_actions_path = mydirmanager.get_file_path('trajs', 'all_{0}_actions.npy'.format(dataset_name_prefix))
-    all_observations_path = mydirmanager.get_file_path('trajs', 'all_{0}_observations.npy'.format(dataset_name_prefix))
+    all_states_path = mydirmanager.get_file_path('cur_dataset', 'all_{0}_states.npy'.format(dataset_name_prefix))
+    all_actions_path = mydirmanager.get_file_path('cur_dataset', 'all_{0}_actions.npy'.format(dataset_name_prefix))
     np.save(all_states_path, np.array(all_states))
     np.save(all_actions_path, np.array(all_actions))
-    np.save(all_observations_path, np.array(all_observations))
