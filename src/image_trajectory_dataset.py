@@ -240,29 +240,40 @@ def dataset_builder(data_config, data_identifier):
 
 
 if __name__ == '__main__':
+    from src.pendulum_analogy_config import Config
+    config = Config()
+    from torch.utils.data import RandomSampler
+    train_dataset = dataset_builder(config.data_config, 'train')
+    train_sampler = RandomSampler(train_dataset)
+    train_loader = DataLoader(train_dataset, sampler=train_sampler,
+                              batch_size=config.batch_size,
+                              num_workers=config.num_workers,
+                              drop_last=True)
 
-    ''' Just testing to see if it works '''
-    dataset = dataset_builder('data/trajectories/damped_cartpole', 'npy')
+    img, states, actions = train_dataset[0]
 
-    img, states, actions = dataset[0]
-
-    loader = DataLoader(dataset, batch_size=len(dataset), shuffle=True, drop_last=True)
-
-    for i in range(len(dataset)):
-        imgs, states, actions = dataset[i]
-        print(imgs.size())
-        print(actions.size())
-        print(states.size())
-
-    for i, batch in enumerate(loader):
-        imgs = batch[0]
-        states = batch[1]
-        actions = batch[2]
-        print(imgs.size())
-        print(states.size())
-        print(actions.size())
-
-
-    print(loader.batch_size)
-    print(len(loader.dataset))
-    print(len(loader.dataset) // loader.batch_size)
+    for obs, state, action in train_loader:
+        print(obs.shape)
+        print(state.shape)
+        print(action.shape)
+    #
+    # loader = DataLoader(dataset, batch_size=len(dataset), shuffle=True, drop_last=True)
+    #
+    # for i in range(len(dataset)):
+    #     imgs, states, actions = dataset[i]
+    #     print(imgs.size())
+    #     print(actions.size())
+    #     print(states.size())
+    #
+    # for i, batch in enumerate(loader):
+    #     imgs = batch[0]
+    #     states = batch[1]
+    #     actions = batch[2]
+    #     print(imgs.size())
+    #     print(states.size())
+    #     print(actions.size())
+    #
+    #
+    # print(loader.batch_size)
+    # print(len(loader.dataset))
+    # print(len(loader.dataset) // loader.batch_size)
