@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 import numpy as np
 from torch.distributions import Normal
-from quaternion import qrot, qinverse, expmap_to_quaternion, qmul, eulerq, qeuler
+from src.quaternion import qrot, qinverse, expmap_to_quaternion, qmul, eulerq, qeuler
 
 from src.utils import bdot
 

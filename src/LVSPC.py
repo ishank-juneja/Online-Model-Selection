@@ -4,7 +4,7 @@ from datetime import datetime
 import signal
 import sys
 import argparse
-from image_trajectory_dataset import dataset_builder
+from src.data_utils.image_trajectory_dataset import dataset_builder
 from torch.utils.data import DataLoader, RandomSampler
 from arm_pytorch_utilities.rand import seed
 import os

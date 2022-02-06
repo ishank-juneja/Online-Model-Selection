@@ -1,6 +1,6 @@
 from src.dynamics_models import CartPoleDynamics
 from src.agents.costs import CartpoleTipCost
-from src.image_trajectory_dataset import preprocess_identity
+from src.data_utils.image_trajectory_dataset import preprocess_identity
 import torch
 
 
