@@ -30,77 +30,96 @@ class MyDatasetBuilder:
 
     # Returns pytorch DataLoader compatible object
     def get_dataset(self, data_config, data_identifier: str):
-        dataset_dir = os.path.join(data_config.data_dir, data_identifier)
-        filenames = os.listdir(dataset_dir)
-        self.sort_nicely(filenames)
-        observation_files = []
-        for filename in filenames:
-            if 'actions' in filename:
-                action_file_path = os.path.join(data_config.data_dir, filename)
-            elif 'states' in filename:
-                state_file_path = os.path.join(data_config.data_dir, filename)
-            if 'observations' in filename:
-                observation_files.append(os.path.join(data_config.data_dir, filename))
-        return ImageTrajectoryDataset(action_file_path, state_file_path, observation_files, data_config)
+        dataset_dir = data_config.data_dir
+        # List out all the traj dirs in this folder
+        dirnames = os.listdir(dataset_dir)
+        self.sort_nicely(dirnames)
+        # Lists to hold full datasets
+        all_obs_frame_files = []
+        all_actions = []
+        all_states = []
+        # Iterate over the traj specific folder present inside
+        for dirname in dirnames:
+            if data_identifier in dirname:
+                cur_dir_path = os.path.join(dataset_dir, dirname)
+                dir_filenames = os.listdir(cur_dir_path)
+                self.sort_nicely(dir_filenames)
+                # List to hold file names of observations in sorted order
+                obs_frame_files = []
+                for filename in dir_filenames:
+                    filepath = os.path.join(cur_dir_path, filename)
+                    if 'observation' in filename:
+                        obs_frame_files.append(filepath)
+                    elif 'actions' in filename:
+                        all_actions.append(filepath)
+                    elif 'states' in filename:
+                        all_states.append(filepath)
+                all_obs_frame_files.append(obs_frame_files)
+        return ImageTrajectoryDataset(all_actions, all_states, all_obs_frame_files, data_config)
 
 
 # Class in the standard pytorch dataloader format overriding __getitem__ and __len__
 class ImageTrajectoryDataset(Dataset):
-    def __init__(self, image_filenames, state_filename, action_filename, data_config):
+    def __init__(self, action_filenames, state_filenames, obs_filenames, data_config):
         self.data_config = data_config
-        self.image_filenames = image_filenames
-        self.state_filename = state_filename
-        self.action_filename = action_filename
-
-        images = np.asarray(np.load(image_filename, allow_pickle=True))
-        images = torch.from_numpy(images)
-        images = self.data_config.preprocess_obs_fn(images)
-        states = torch.from_numpy(np.asarray(np.load(state_filename, allow_pickle=True)))
-        self.states = self.data_config.preprocess_state_fn(states)
-        self.actions = torch.from_numpy(np.asarray(np.load(action_filename, allow_pickle=True))).float()
-        images = images.permute(0, 1, 4, 3, 2)
-        N, T, _ = self.actions.shape
-        self.input_imsize = images.size()[3]
-        self.N = images.size()[0]
-        self.T = images.size()[1]
-        self.images = self.preprocess_imgs(images)
+        self.image_filenames = obs_filenames
+        self.state_filenames = state_filenames
+        self.action_filenames = action_filenames
+        # Determine parameters of the dataset
+        # Assumption: Every trajectory is the same number of frames
+        self.ntraj = len(self.image_filenames)
+        self.traj_len = len(self.image_filenames[0])
+        # Load a single image to get image shape
+        tmp_frame = np.load(self.image_filenames[0][0])
+        self.imsize, _, self.nchannels = tmp_frame.shape[0]
 
     def preprocess_imgs(self, imgs):
-        if self.data_config.depth:
-            imgs = imgs[:, :, :-1]
-            #depth += 0.2871
-            #depth += torch.randn_like(depth) * 0.0
-            # depth = depth.clamp(min=0.0, max=1.0)
-            #depth += 0.01 * torch.randn_like(depth)
-
+        # Preprocess grayscale images
         if self.data_config.grey:
             preprocess_img = transforms.Compose([transforms.ToPILImage(),
                                              transforms.Grayscale(num_output_channels=1),
                                              transforms.Resize((self.data_config.imsize, self.data_config.imsize)),
                                              transforms.ToTensor()
                                              ])
+        # Preprocess RGB images
         else:
             preprocess_img = transforms.Compose([transforms.ToPILImage(),
                                              transforms.Resize((self.data_config.imsize, self.data_config.imsize)),
                                              transforms.ToTensor()
                                              ])
-
-        imgs_flat = imgs.reshape(-1, 3, self.input_imsize, self.input_imsize)
-        processed_imgs = torch.stack([preprocess_img(img) for img in imgs_flat], 0)
+        # make preprocess_img operate on individual frames
+        processed_imgs = torch.stack([preprocess_img(img) for img in imgs], 0)
         # The -1 is probably an openCV thing
         processed_imgs = processed_imgs.view(self.N, self.T, -1, self.data_config.imsize, self.data_config.imsize)
         return processed_imgs
 
-    def __len__(self):
-        return self.N
+        # Get a batch of trajectories
 
+    def npy_loader(self, path):
+        sample = torch.from_numpy(np.load(path))
+        return sample
+
+    # Return a single traj of observations, one traj is one datapoint in the training loop
+    # TODO: Can use torchvision.DatasetFolder later
     def __getitem__(self, item):
-        image = self.images[item]
+        # Allocate a tensor for sticking together loaded traj image frames
+        loaded_frames = torch.zeros((self.traj_len, self.imsize, self.imsize, self.nchannels))
+        traj_image_filenames = self.image_filenames[item]
+        # Iterate over image filenames for this traj
+        for frame_idx, filepath in enumerate(traj_image_filenames):
+            loaded_frames[frame_idx, :, :, :] = self.npy_loader(filepath)
+        loaded_actions = self.npy_loader(self.action_filenames[item])
+        loaded_states = self.npy_loader(self.state_filenames[item])
 
-        if self.states is None:
-            return image, self.actions[item]
+        # Change the sequence of tensor dims
+        loaded_frames = loaded_frames.permute(0, 3, 2, 1)
+        loaded_frames = self.preprocess_imgs(loaded_frames)
 
-        return image.float(), self.states[item].float(), self.actions[item].float()
+        return image.float(), loaded_states.float(), loaded_actions.float()
+
+    # Return total number of trajectories, one traj is one datapoint in the training loop
+    def __len__(self):
+        return self.ntraj
 
 
 def preprocess_identity(states):
