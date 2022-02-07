@@ -189,10 +189,7 @@ class Trainer:
     def test(self, test_loader):
         self.model.eval_mode()
         with torch.no_grad():
-            if test_loader.dataset.datasets[0].states is None:
-                return self.test_no_state(test_loader)
-            else:
-                return self.do_epoch(test_loader, grad_update=False)
+            return self.do_epoch(test_loader, grad_update=False)
 
     def test_no_state(self, test_loader):
         recon_loss = 0.0

@@ -4,7 +4,7 @@ from datetime import datetime
 import signal
 import sys
 import argparse
-from src.data_utils.image_trajectory_dataset import dataset_builder
+from src.data_utils.image_trajectory_dataset import MyDatasetBuilder
 from torch.utils.data import DataLoader, RandomSampler
 from arm_pytorch_utilities.rand import seed
 import os
@@ -84,8 +84,9 @@ if args.train or args.test or args.viz:
         # X, A, S = load_box_data(args.data_dir)
         raise ValueError('No dataloader implemented for box data')
     else:
+        dataset_builder = MyDatasetBuilder()
         if args.train:
-            train_dataset = dataset_builder(config.data_config, 'train')
+            train_dataset = dataset_builder.get_dataset(config.data_config, 'train')
             train_sampler = RandomSampler(train_dataset)
             train_loader = DataLoader(train_dataset, sampler=train_sampler,
                                       batch_size=config.batch_size,
@@ -93,7 +94,7 @@ if args.train or args.test or args.viz:
                                       drop_last=True)
 
         if args.test or args.viz:
-            test_dataset = dataset_builder(config.data_config, 'test')
+            test_dataset = dataset_builder.get_dataset(config.data_config, 'test')
             test_sampler = RandomSampler(test_dataset)
             test_loader = DataLoader(test_dataset, sampler=None,
                                      batch_size=25,
