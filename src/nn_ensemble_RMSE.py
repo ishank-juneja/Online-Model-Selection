@@ -14,58 +14,6 @@ parser.add_argument("--cnn-name", type=str)
 parser.add_argument("--combine", action="store_true")
 args = parser.parse_args()
 
-
-# Takes the covariance matrix Sigma as an input
-def plot_ellipse(Sigma, num_sigmas=1):
-    # Perform eigen value decomposition of Sigma
-    e_vals, e_vecs = np.linalg.eig(Sigma)
-    # Get the eigen vector which is the direction of major axis
-    evec1 = e_vecs[:, 0]
-    # Get the minor axis
-    evec2 = e_vecs[:, 1]
-    # Find the angle that ellipse needs to be rotated to get the right ellipse contour
-    theta = atan2(evec1[1], evec1[0])
-    # Get length of semi-major and semi-minor axes, use 1-sigma contour
-    a = num_sigmas * sqrt(e_vals[0])
-    b = num_sigmas * sqrt(e_vals[1])
-    # Generate a Standard Ellipse
-    t = np.linspace(0, 2*pi, 100)
-    Ell = np.array([a*np.cos(t), b*np.sin(t)])
-    # 2-D rotation matrix
-    R_rot = np.array([[cos(theta), -sin(theta)],
-                  [sin(theta), cos(theta)]])
-    # Rotated Ellipse
-    Ell_rot = np.zeros((2, Ell.shape[1]))
-    for i in range(Ell.shape[1]):
-        Ell_rot[:, i] = np.dot(R_rot, Ell[:, i])
-    return Ell_rot
-
-# Coordinate transform a point from sim to plot
-def sim2plot(point_2d_array):
-    return np.array([int(point_2d_array[0] * 21) + 32, -int(point_2d_array[1] * 21) + 32])
-
-def sim2plot_ellipse(ellipse_pts):
-    npts = ellipse_pts.shape[1]
-    new_ell_pts = np.zeros_like(ellipse_pts)
-    for idx in range(npts):
-        new_ell_pts[:, idx] = sim2plot(ellipse_pts[:, idx])
-    return new_ell_pts
-
-# Plot 2D mean/std-dev
-def plot_state_estimate2D(mu, std_dev):
-    # Plot ellipse center
-    mu_plot = sim2plot(mu.cpu().detach().numpy()[0])
-    std_dev = std_dev.cpu().detach().numpy()[0]
-    plt.scatter(mu_plot[0], mu_plot[1], color='g')
-    # Arrange std_devs into covariance matrix
-    sigma = np.array([[std_dev[0] ** 2, 0.0], [0.0, std_dev[1] ** 2]])
-    # Obtain Ellipse Contour
-    ell_pts = plot_ellipse(sigma)
-    ell_pts = sim2plot_ellipse(ell_pts)
-    # Plot Ellipse contour
-    plt.fill(mu_plot[0] + ell_pts[0, :] - 32, mu_plot[1] + ell_pts[1, :] - 32, alpha=0.7, color='g', ec=None)
-
-
 # Path for test data frame
 # test_path = "data/MujocoBall-v0/test_traj_22/observation_step_1.npy"
 # test_path = "data-archive/Conkers-v0/all_test_observations.npy"

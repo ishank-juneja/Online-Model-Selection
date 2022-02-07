@@ -17,6 +17,7 @@
   <option gravity="0 0 -9.81" integrator="Euler" timestep="0.05"/>
   <size nstack="3000"/>
   <worldbody>
+    <geom name="gsquare" type="box" size="1.6 .1 1.6" pos="0 0 0"/>
     <!--    camera oriented to look head on onto the x-z plane-->
     <camera name="rgb" mode="fixed" pos="0 4 0.0" euler="-90 0 180"/>
     <body name="ball" pos="0 0 0">

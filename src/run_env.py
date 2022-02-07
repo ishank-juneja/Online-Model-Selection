@@ -29,6 +29,8 @@ if __name__ == '__main__':
     parser.add_argument("--len", default=100, help="Trajectory length", type=int)
     # Display the images being produced
     parser.add_argument("--show", action="store_true", help="render env")
+    # Whether to save any data at all
+    parser.add_argument("--save", action="store_true", help="save anything?")
     # Random seed for torch, np, random, and gym
     parser.add_argument("--seed", type=int)
     args = parser.parse_args()
@@ -103,7 +105,7 @@ if __name__ == '__main__':
             # state at t
             # action at t-1 (that took us from t-1 to t)
         # If traj was len long, only then save to disk
-        if len(traj_observations) == args.len:
+        if len(traj_observations) == args.len and args.save:
             # Create a dir to store observations from this trajectory
             traj_dir_path = mydirmanager.make_dir_from_dict('cur_dataset', {'_traj': traj_idx + 1},
                                                             prefix=args.dataset_type)
