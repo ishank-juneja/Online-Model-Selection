@@ -71,7 +71,7 @@ class ImageTrajectoryDataset(Dataset):
         self.traj_len = len(self.image_filenames[0])
         # Load a single image to get image shape
         tmp_frame = np.load(self.image_filenames[0][0])
-        self.imsize, _, self.nchannels = tmp_frame.shape[0]
+        self.imsize, _, self.nchannels = tmp_frame.shape
 
     def preprocess_imgs(self, imgs):
         # Preprocess grayscale images
@@ -89,8 +89,8 @@ class ImageTrajectoryDataset(Dataset):
                                              ])
         # make preprocess_img operate on individual frames
         processed_imgs = torch.stack([preprocess_img(img) for img in imgs], 0)
-        # The -1 is probably an openCV thing
-        processed_imgs = processed_imgs.view(self.N, self.T, -1, self.data_config.imsize, self.data_config.imsize)
+        # The -1 means infer from other dimensions
+        processed_imgs = processed_imgs.view(self.traj_len, -1, self.imsize, self.imsize)
         return processed_imgs
 
         # Get a batch of trajectories
@@ -110,12 +110,11 @@ class ImageTrajectoryDataset(Dataset):
             loaded_frames[frame_idx, :, :, :] = self.npy_loader(filepath)
         loaded_actions = self.npy_loader(self.action_filenames[item])
         loaded_states = self.npy_loader(self.state_filenames[item])
-
         # Change the sequence of tensor dims
         loaded_frames = loaded_frames.permute(0, 3, 2, 1)
+        # Preprocess traj of images
         loaded_frames = self.preprocess_imgs(loaded_frames)
-
-        return image.float(), loaded_states.float(), loaded_actions.float()
+        return loaded_frames.float(), loaded_states.float(), loaded_actions.float()
 
     # Return total number of trajectories, one traj is one datapoint in the training loop
     def __len__(self):
