@@ -115,8 +115,8 @@ class KendamaEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # Now want the problem to be non trivial - can't start at goal, so will just
         # Rejection sample goal
         while initial_collision:
-            self.goal_x = -1 * self.get_body_com('cup')[0]
-            self.goal_y = self.get_body_com('cup')[2]
+            self.goal_x = np.random.uniform(low=0.0, high=1.5)
+            self.goal_y = np.random.uniform(low=-1, high=.1)
             self.set_state(
                 self.init_qpos + rand_mask * self.np_random.uniform(low=-0.25 * np.pi, high=0.25 * np.pi,
                                                                     size=self.model.nq),
