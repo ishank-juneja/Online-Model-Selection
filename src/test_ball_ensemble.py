@@ -68,8 +68,8 @@ def plot_state_estimate2D(mu, std_dev):
 
 # Path for test data frame
 # test_path = "data/MujocoBall-v0/test_traj_22/observation_step_1.npy"
-# test_path = "data-archive/Conkers-v0/all_test_observations.npy"
-test_path =  "data/MujocoCartpole-v0/test_traj_22/observation_step_1.npy"
+test_path = "data-archive/Conkers-v0/all_test_observations.npy"
+# test_path =  "data/MujocoCartpole-v0/test_traj_22/observation_step_1.npy"
 state_path = "data/MujocoBall-v0/test_traj_22/traj_states.npy"
 # test_path = "data-archive/MujocoBall-v0/all_test_observations.npy"
 
@@ -78,8 +78,8 @@ model_name = args.cnn_name
 # model_name = 'model_conkers_Feb05_13-33-50'
 if 'conkers' in model_name:
     from src.pendulum_analogy_config import Config
-    # test_data = np.load(test_path)[57, 10, :, :, :]
-    test_data = np.load(test_path)
+    test_data = np.load(test_path)[57, 10, :, :, :]
+    # test_data = np.load(test_path)
     test_states = np.load(state_path)
 elif 'ball' in model_name:
     from src.ball_config import Config
