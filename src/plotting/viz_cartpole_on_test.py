@@ -25,7 +25,7 @@ def cleanup_frames_from_disk(path_where_frames_dumped):
     return
 
 # stddevs is a concatenated array of all 3 kinds of uncertanties
-def save_animation_frames(imgs, means, stddevs):
+def save_animation_frames(imgs, means, stddevs, save_dir):
     fig = plt.figure(figsize=(20, 5))
     ax = fig.subplots(1, 4)
     # Plot a separate plot for every frame in the trajectory
@@ -36,38 +36,49 @@ def save_animation_frames(imgs, means, stddevs):
             ax[jdx].plot(means[:, 0])
             ax[jdx].plot(means[:, 1])
             ax[jdx].plot(means[:, 2])
-            ax[jdx].fill_between(np.arange(len(means)), means[:, 0] - STDDEV_SCALE * stddevs[:, jdx - 1, 0],
-                               means[:, 0] + STDDEV_SCALE * stddevs[:, jdx - 1, 0], alpha=0.4)
-            ax[jdx].fill_between(np.arange(len(means)), means[:, 1] - STDDEV_SCALE * stddevs[:, jdx - 1, 1],
-                               means[:, 1] + STDDEV_SCALE * stddevs[:, jdx - 1, 1], alpha=0.4)
-            ax[jdx].fill_between(np.arange(len(means)), means[:, 2] - STDDEV_SCALE * stddevs[:, jdx - 1, 2],
-                               means[:, 2] + STDDEV_SCALE * stddevs[:, jdx - 1, 2], alpha=0.4)
+            std_dev_scale = STDDEV_SCALE
+            if jdx == 3:
+                std_dev_scale = 2 * STDDEV_SCALE
+            ax[jdx].fill_between(np.arange(len(means)), means[:, 0] - std_dev_scale * stddevs[:, jdx - 1, 0],
+                               means[:, 0] + std_dev_scale * stddevs[:, jdx - 1, 0], alpha=0.4)
+            ax[jdx].fill_between(np.arange(len(means)), means[:, 1] - std_dev_scale * stddevs[:, jdx - 1, 1],
+                               means[:, 1] + std_dev_scale * stddevs[:, jdx - 1, 1], alpha=0.4)
+            ax[jdx].fill_between(np.arange(len(means)), means[:, 2] - std_dev_scale * stddevs[:, jdx - 1, 2],
+                               means[:, 2] + std_dev_scale * stddevs[:, jdx - 1, 2], alpha=0.4)
             ax[jdx].axvline(idx, color='r')
+            ax[jdx].set_ylim([-1.7, 1.7])
             ax[jdx].set_aspect(1.0 / ax[jdx].get_data_ratio(), adjustable='box')
+        ax[1].set_title('Total Uncertainty')
+        ax[2].set_title('Aleatoric')
+        ax[3].set_title('Epistemic')
         # The image frame goes in the first column
         ax[0].imshow(imgs[idx])
-        fig.legend(['xcart', 'xmass', 'ymass'], loc='upper right')
+        # fig.legend(['xcart', 'xmass', 'ymass'], loc='upper right')
+        fig.suptitle('Uncertainty Evolution for Cartpole Perception', size=18)
         # Save temporary png file frames in home folder
-        fig.savefig("file%02d.png" % idx)
+        fig.savefig(os.path.join(save_dir, "file{0:02d}.png".format(idx + 1)))
         # Clear all axes for next frame
         for jdx in range(4):
             ax[jdx].cla()
     fig.clear()
 
 
-def save_video(video_path):
+def save_video(video_path, frames_dir):
+    frames_path_pattern = os.path.join(frames_dir, 'file%02d.png')
     subprocess.call([
-        'ffmpeg', '-framerate', '2', '-i', 'file%02d.png', '-r', '30', '-pix_fmt', 'yuv420p',
+        'ffmpeg', '-framerate', '2', '-i', frames_path_pattern, '-r', '30', '-pix_fmt', 'yuv420p',
         video_path
     ])
-    cleanup_frames_from_disk('')
+    cleanup_frames_from_disk(frames_dir)
 
 
-def save_gif(gif_path):
+def save_gif(gif_path, frames_dir):
+    print("Baking your GIF ... ")
+    frames_path_pattern = os.path.join(frames_dir, '*.png')
     subprocess.call([
-        'convert', '-delay', '120', '-loop', '0', 'file*.png', gif_path
+        'convert', '-delay', '60', '-loop', '0', frames_path_pattern, gif_path
     ])
-    cleanup_frames_from_disk('')
+    cleanup_frames_from_disk(frames_dir)
 
 
 if __name__ == '__main__':
@@ -79,10 +90,11 @@ if __name__ == '__main__':
     parser.add_argument("--make-mp4", action="store_true")
     parser.add_argument("--cnn-name", type=str)
     args = parser.parse_args()
+    cnn_name = args.cnn_name.split('.')[0]
 
     dir_manager = ResultDirManager()
     dir_manager.add_location('test_data', 'data/online/')
-    dir_manager.add_location('vid_results', 'results/videos')
+    dir_manager.add_location('vid_results', 'results/videos/{0}'.format(cnn_name))
 
     if args.save_images:
         dir_manager.add_location('dataset', args.data_loc)
@@ -117,14 +129,15 @@ if __name__ == '__main__':
             stddev_np = stddev.cpu().detach().numpy()[0].reshape(10, 3)
             traj_stddev[idx, 1, :] = get_aleatoric_uncertainty(stddev_np)
             traj_stddev[idx, 0, :] = np.sqrt(np.square(traj_stddev[idx, 1, :]) + np.square(traj_stddev[idx, 2, :]))
+        dir_save = dir_manager.get_abs_path('vid_results')
         # Get path to .mp4 file
-        save_animation_frames(frames, traj_mu, traj_stddev)
+        save_animation_frames(frames, traj_mu, traj_stddev, dir_save)
         if args.make_mp4:
-            vid_path = dir_manager.next_path('vid_results', '{0}_test'.format(args.cnn_name), postfix='%s.mp4')
-            save_video(vid_path)
+            vid_path = dir_manager.next_path('vid_results', '{0}_test'.format(cnn_name), postfix='%s.mp4')
+            save_video(vid_path, dir_save)
         if args.make_gif:
-            gif_path = dir_manager.next_path('vid_results', '{0}_test'.format(args.cnn_name), postfix='%s.gif')
-            save_gif(gif_path)
+            gif_path = dir_manager.next_path('vid_results', '{0}_test'.format(cnn_name), postfix='%s.gif')
+            save_gif(gif_path, dir_save)
         if args.save_images:
             traj_dir = dir_manager.make_fresh_dir('dataset', 'test_traj_{0}'.format(idx + 1))
             for jdx in range(len(frames)):
