@@ -4,7 +4,6 @@ Running mujoco-gym environments
 
 # Some of these import are needed even they haven't been used explicitly here
 import random
-
 import gym
 # pycharm may not highlight this one but it is needed
 import gym_cenvs
@@ -21,8 +20,6 @@ if __name__ == '__main__':
     parser.add_argument("--env", help="gym environment")
     # prefix for file names to be saved
     parser.add_argument("--dataset-type", help="either train or test", choices=['train', 'test'])
-    # Specify whether to do augmentations while writing dataset
-    parser.add_argument("--augmentation", action="store_true")
     # Number of trajectories being used to get the desired images
     parser.add_argument("--ntraj", default=100, help="Number of trajectories", type=int)
     # Actions in each traj
@@ -44,9 +41,7 @@ if __name__ == '__main__':
     dataset_name_prefix = args.dataset_type
     # Create dir manager object for saving results
     mydirmanager = ResultDirManager()
-    mydirmanager.add_location('cur_dataset', 'data/{0}/{1}'.format(env_name, dataset_name_prefix), make_dir_if_none=True)
-    # Create an object for data augmentation
-    myaugmenter = SimDomainRandomization()
+    mydirmanager.add_location('cur_dataset', 'data/', make_dir_if_none=True)
 
 
     # Trajectory index
@@ -56,6 +51,7 @@ if __name__ == '__main__':
     # Lists to hold all actions/states
     all_actions = []
     all_states = []
+    all_observations = []
     # Collect observations from ntraj number of trajectories for a sequence of trajlen number of random actions
     while traj_idx < args.ntraj:
         if traj_idx % 10 == 0:
@@ -80,10 +76,6 @@ if __name__ == '__main__':
             observation, _, done, info = env.step(action)
             # info is a dict from a mujoco env, NA for gym in built envs
             state = info["state"]
-            # For conkers and kendama env we take out only the ball/sphere/conker coordinates from state
-            # to make an ood images test dataset
-            if 'Conkers' or 'Kendama' in env_name:
-                state = state[-2:]
             # Add state and action to list
             traj_states.append(state)
             traj_actions.append(action)
@@ -107,22 +99,7 @@ if __name__ == '__main__':
             # action at t-1 (that took us from t-1 to t)
         # If traj was len long, then save to disk
         if len(traj_observations) == args.len:
-            for obs_step_idx, obs in enumerate(traj_observations):
-                base_path = mydirmanager.get_file_path_from_dict('cur_dataset', {'traj': traj_idx + 1, 'step': obs_step_idx + 1})
-                # Path to original observation image obtained from simulator
-                og_path = base_path + '_og.npy'
-                np.save(og_path, obs)
-                # generate random number between 1 and 3
-                aug_type = random.randint(1, 2)
-                if args.augmentation:
-                    if aug_type == 1:
-                        obs_checker1 = myaugmenter.checkerboard_type1(obs)
-                        checker1_path = base_path + '_checker1.npy'
-                        np.save(checker1_path, obs_checker1)
-                    elif aug_type == 2:
-                        obs_checker2 = myaugmenter.checkerboard_type2(obs)
-                        checker2_path = base_path + '_checker2.npy'
-                        np.save(checker2_path, obs_checker2)
+            all_observations.append(traj_observations)
             # Add states and actions to consolidated data structure
             all_actions.append(traj_actions)
             all_states.append(traj_states)
@@ -131,7 +108,9 @@ if __name__ == '__main__':
             # Nothing to update
             continue
     env.close()
+    all_observations_path = mydirmanager.get_file_path('cur_dataset', 'all_{0}_observations.npy'.format(dataset_name_prefix))
     all_states_path = mydirmanager.get_file_path('cur_dataset', 'all_{0}_states.npy'.format(dataset_name_prefix))
     all_actions_path = mydirmanager.get_file_path('cur_dataset', 'all_{0}_actions.npy'.format(dataset_name_prefix))
     np.save(all_states_path, np.array(all_states))
     np.save(all_actions_path, np.array(all_actions))
+    np.save(all_observations_path, np.array(all_observations))
