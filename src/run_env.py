@@ -41,7 +41,7 @@ if __name__ == '__main__':
     dataset_name_prefix = args.dataset_type
     # Create dir manager object for saving results
     mydirmanager = ResultDirManager()
-    mydirmanager.add_location('cur_dataset', 'data/', make_dir_if_none=True)
+    mydirmanager.add_location('cur_dataset', 'data/seed{0}'.format(args.seed), make_dir_if_none=True)
 
 
     # Trajectory index

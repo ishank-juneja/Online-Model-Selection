@@ -1,3 +1,6 @@
- 
+VAE and AE: 
 https://towardsdatascience.com/understanding-variational-autoencoders-vaes-f70510919f73
+
+Paper discussing Epi and Alea uncertainty in learned models: 
+https://openreview.net/forum?id=WqUl7sNkDre
 
