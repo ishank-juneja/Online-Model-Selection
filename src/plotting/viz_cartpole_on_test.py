@@ -53,7 +53,7 @@ def save_animation_frames(imgs, means, stddevs, save_dir):
         ax[3].set_title('Epistemic')
         # The image frame goes in the first column
         ax[0].imshow(imgs[idx])
-        # fig.legend(['xcart', 'xmass', 'ymass'], loc='upper right')
+        fig.legend(['xcart', 'xmass', 'ymass'], loc='upper right')
         fig.suptitle('Uncertainty Evolution for Cartpole Perception', size=18)
         # Save temporary png file frames in home folder
         fig.savefig(os.path.join(save_dir, "file{0:02d}.png".format(idx + 1)))
@@ -61,6 +61,7 @@ def save_animation_frames(imgs, means, stddevs, save_dir):
         for jdx in range(4):
             ax[jdx].cla()
     fig.clear()
+    plt.close()
 
 
 def save_video(video_path, frames_dir):
@@ -112,6 +113,10 @@ if __name__ == '__main__':
 
     # Find predicted mean/uncertainty for loaded perception model for all these image trajectories that were
     # generated online
+    if len(episode_data_files) > 100:
+        first_few = episode_data_files[0:50]
+        last_few = episode_data_files[0:50]
+        episode_data_files = first_few + last_few
     for idx, file_path in enumerate(episode_data_files):
         episode_data = np.load(file_path)
         # Extract frames from loaded file

@@ -46,7 +46,7 @@ class Config:
         self.epochs = 80
         self.batch_size = 128
         # self.lr_init = 5e-3
-        self.lr_init = 3e-3
+        self.lr_init = 5e-3
         self.lr_decay_rate = 0.1
         self.lr_decay_steps = 20
         self.optimiser = 'adam'
