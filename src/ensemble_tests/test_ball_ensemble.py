@@ -1,5 +1,5 @@
 import torch.cuda
-from models.UKVAE import UnscentedKalmanVariationalAutoencoder
+from src.models.UKVAE import UnscentedKalmanVariationalAutoencoder
 import numpy as np
 import os
 import matplotlib.pyplot as plt

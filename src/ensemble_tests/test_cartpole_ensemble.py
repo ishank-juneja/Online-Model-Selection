@@ -1,12 +1,12 @@
 import torch.cuda
-from models.UKVAE import UnscentedKalmanVariationalAutoencoder
+from src.models.UKVAE import UnscentedKalmanVariationalAutoencoder
 import numpy as np
 import os
 import matplotlib.pyplot as plt
 import argparse
 import re
 from math import pi, cos, sin, atan2, sqrt
-from results_dir_manager import ResultDirManager
+from src.results_dir_manager import ResultDirManager
 dir_manager = ResultDirManager()
 
 parser = argparse.ArgumentParser()

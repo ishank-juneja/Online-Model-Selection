@@ -19,7 +19,7 @@ class MujocoCartPoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.plength_cur = 1.0
         self.pwidth = 0.1
         self.mradius = 0.2
-        self.randomize = True
+        self.randomize = False
         # Maximum perturbations to semi length
         self.plength_max_sub = 0.2
         self.plength_max_add = 0.25
@@ -59,7 +59,7 @@ class MujocoCartPoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         ob = self._get_obs()
         state = self._get_state()
         # Also terminate if the cart/slider joint goes out of the sim camera FOV
-        out_of_view = np.abs(self.sim.data.qpos[0]) > 2.0 # Earlier tried 2.5
+        out_of_view = np.abs(self.sim.data.qpos[0]) > 1.7 # Earlier tried 2.5
         # self.done is never set to True since there is no task
         done = out_of_view or self.done
         # dummy cost

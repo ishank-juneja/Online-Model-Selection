@@ -19,6 +19,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # Pass name of environment from within file gym_cenvs __init__.py
     parser.add_argument("--env", help="gym environment")
+    # Certain customized version of the environment
+    parser.add_argument("--ver", type=str)
     # prefix for file names to be saved
     parser.add_argument("--dataset-type", help="either train or test", choices=['train', 'test'])
     # Specify whether to do augmentations while writing dataset
@@ -39,6 +41,8 @@ if __name__ == '__main__':
     seed(args.seed)
     env_name = args.env
     env = gym.make(env_name)
+    if args.ver is not None:
+        env_name += args.ver
     env.seed(args.seed)
     env.action_space.seed(args.seed)
     env.reset()

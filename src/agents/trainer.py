@@ -70,7 +70,9 @@ class Trainer:
                                                                                       encoder_loss,
                                                                                       dynamics_loss))
                 self.writer.add_scalar('test loss', loss, e)
-
+        self.writer.add_hparams({'lr': self.config.lr_init, 'lr_decay_rate': self.config.lr_decay_rate,
+                              'lr_decay_steps': self.config.lr_decay_steps, 'bsize': self.config.batch_size},
+                                {'hparam/test_loss': loss})
         self.save()
 
     def do_epoch(self, data_loader, grad_update=True):
@@ -164,6 +166,7 @@ class Trainer:
             else:
                 if self.config.train_decoder:
                     self.plot_entropy_recon_loss(entropy, recon_loss, 'cartpole')
+                # TODO: Add RMSE loss here
             total_loss += loss.item()
 
         total_loss /= num_batches

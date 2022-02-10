@@ -34,7 +34,6 @@ parser.add_argument("--test", action="store_true")
 parser.add_argument("--viz", action="store_true")
 parser.add_argument("--viz-src", choices=["decoder", "gym"], default="decoder")
 parser.add_argument("--data-dir", default="../data/trajectories/mujoco_cartpole")
-parser.add_argument("--log", action="store_true")
 parser.add_argument("--box", action="store_true")
 parser.add_argument("--do-control", action="store_true")
 parser.add_argument("--experiment", choices=["conkers", "ball"])
@@ -68,10 +67,7 @@ else:
 print('Model name: {}'.format(name))
 # set seed
 seed(randseed=config.seed)
-mywriter = None
-# Use TensorBoardX object to log
-if args.log:
-    mywriter = SummaryWriter(flush_secs=20, log_dir='runs/{}'.format(name))
+mywriter = SummaryWriter(flush_secs=20, log_dir='runs/{}'.format(name))
 device = config.device
 
 if args.train or args.test or args.viz:
@@ -111,6 +107,7 @@ if args.train or args.test or args.viz:
 
     if args.train:
         print("Training...")
+
         trainer.run(train_loader, test_loader)
         test_loss = trainer.test(train_loader)
 
