@@ -102,7 +102,7 @@ if __name__ == '__main__':
                 plt.pause(0.01)
                 plt.draw()
             # Premature termination criteria
-            if done:
+            if done or (np.abs(state[0]) > 1.7):
                 break
             # Note: We save
             # observation at t
