@@ -88,12 +88,11 @@ if __name__ == '__main__':
                     img.set_data(observation[:, :, :3])
                 plt.pause(0.01)
                 plt.draw()
-
-            if args.terminate_at_done and done:
-                break
-
-            if args.terminate_off_screen and (np.abs(state[0]) > 1.7):
-                break
+            # if args.terminate_at_done and done:
+            #     break
+            #
+            # if args.terminate_off_screen and (np.abs(state[0]) > 1.7):
+            #     break
             # We save
             # observation at t
             # state at t
@@ -103,6 +102,8 @@ if __name__ == '__main__':
             traj_actions.append(action)
             # Add observation to tmp list
             traj_observations.append(observation)
+            if done:
+                break
         # If traj was len long, then save to disk
         if len(traj_observations) == args.len:
             all_observations.append(traj_observations)
