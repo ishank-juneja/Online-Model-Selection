@@ -24,6 +24,8 @@ if __name__ == '__main__':
     parser.add_argument("--ntraj", default=100, help="Number of trajectories", type=int)
     # Actions in each traj
     parser.add_argument("--len", default=100, help="Trajectory length", type=int)
+    parser.add_argument("--seed", default=0, help="Random Seed", type=int)
+    parser.add_argument("--show", action="store_true")
     # Display the images being produced
     parser.add_argument("--terminate-at-done", action="store_true")
     parser.add_argument("--terminate-off-screen", action="store_true")
@@ -42,7 +44,7 @@ if __name__ == '__main__':
     dataset_name_prefix = args.dataset_type
     # Create dir manager object for saving results
     mydirmanager = ResultDirManager()
-    mydirmanager.add_location('cur_dataset', 'data/seed{0}'.format(args.seed), make_dir_if_none=True)
+    mydirmanager.add_location('cur_dataset', 'data', make_dir_if_none=True)
 
 
     # Trajectory index
@@ -77,11 +79,6 @@ if __name__ == '__main__':
             observation, _, done, info = env.step(action)
             # info is a dict from a mujoco env, NA for gym in built envs
             state = info["state"]
-            # Add state and action to list
-            traj_states.append(state)
-            traj_actions.append(action)
-            # Add observation to tmp list
-            traj_observations.append(observation)
             # Optional run-time matplotlib viz
             if args.show:
                 # For the first time an image is created
@@ -91,13 +88,21 @@ if __name__ == '__main__':
                     img.set_data(observation[:, :, :3])
                 plt.pause(0.01)
                 plt.draw()
-            # Premature termination criteria
-            if done:
+
+            if args.terminate_at_done and done:
                 break
-            # Note: We save
+
+            if args.terminate_off_screen and (np.abs(state[0]) > 1.7):
+                break
+            # We save
             # observation at t
             # state at t
-            # action at t-1 (that took us from t-1 to t)
+            # action at t-1
+            # Add state and action to list
+            traj_states.append(state)
+            traj_actions.append(action)
+            # Add observation to tmp list
+            traj_observations.append(observation)
         # If traj was len long, then save to disk
         if len(traj_observations) == args.len:
             all_observations.append(traj_observations)
