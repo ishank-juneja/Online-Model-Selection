@@ -11,6 +11,39 @@ import argparse
 import matplotlib.pyplot as plt
 from results_dir_manager import ResultDirManager
 from arm_pytorch_utilities.rand import seed
+import os
+import subprocess
+import glob
+
+
+def cleanup_frames_from_disk(path_where_frames_dumped):
+    # Get rid of temp png files
+    for file_name in glob.glob(os.path.join(path_where_frames_dumped, '*.png')):
+        os.remove(file_name)
+    return
+
+
+def save_gif(gif_path, frames_dir):
+    print("Baking your GIF ... ")
+    frames_path_pattern = os.path.join(frames_dir, '*.png')
+    subprocess.call([
+        'convert', '-delay', '20', '-loop', '0', frames_path_pattern, gif_path
+    ])
+    cleanup_frames_from_disk(frames_dir)
+
+def save_traj_frames(frames_list, frames_dir):
+    fig = plt.figure(figsize=(5, 5))
+    ax = fig.subplots(1, 1)
+    # Plot a separate plot for every frame in the trajectory
+    for idx in range(len(frames_list)):
+        # The image frame goes in the first column
+        ax.imshow(frames_list[idx])
+        fig.suptitle('Problem Trajectory', size=16)
+        # Save temporary png file frames in home folder
+        fig.savefig(os.path.join(frames_dir, "file{0:02d}.png".format(idx + 1)))
+    fig.clear()
+    plt.close()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -68,6 +101,8 @@ if __name__ == '__main__':
         traj_actions = []
         # List to hold traj observations
         traj_observations = []
+        # Whether early term happened
+        early_term = False
         for i in range(args.len):
             # Sample a random action
             action = env.action_space.sample()
@@ -75,6 +110,14 @@ if __name__ == '__main__':
             observation, _, done, info = env.step(action)
             # info is a dict from a mujoco env, NA for gym in built envs
             state = info["state"]
+            # We save
+            # observation at t
+            # state at t
+            # action at t-1
+            traj_states.append(state)
+            traj_actions.append(action)
+            # Add observation to tmp list
+            traj_observations.append(observation)
             # Optional run-time matplotlib viz
             if args.show:
                 # For the first time an image is created
@@ -86,17 +129,15 @@ if __name__ == '__main__':
                 plt.draw()
             # If early termination criteria reached
             if done:
+                early_term = True
                 break
-            # We save
-            # observation at t
-            # state at t
-            # action at t-1
-            traj_states.append(state)
-            traj_actions.append(action)
-            # Add observation to tmp list
-            traj_observations.append(observation)
         # If traj was len long, then save to disk
         if len(traj_observations) == args.len:
+            if early_term:
+                frames_dir_path = mydirmanager.add_location('problem_trajs', 'results/problem_trajs')
+                save_traj_frames(traj_observations, frames_dir_path)
+                gif_path = mydirmanager.next_path('problem_trajs', 'cartpole_problem_traj', '-%s.gif')
+                save_gif(gif_path, frames_dir_path)
             all_observations.append(traj_observations)
             # Add states and actions to consolidated data structure
             all_actions.append(traj_actions)

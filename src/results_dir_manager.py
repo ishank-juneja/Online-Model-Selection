@@ -35,7 +35,7 @@ class ResultDirManager:
         self.mypaths[loc_name] = loc_rel_pth
         # Add to abs dicts
         self.myabspaths[loc_name] = os.path.join(self.mycwd, loc_rel_pth)
-        return
+        return self.myabspaths[loc_name]
 
     def loc_exists(self, loc_name: str):
         if loc_name in self.mylocs:
