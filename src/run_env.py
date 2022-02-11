@@ -3,7 +3,6 @@
 """
 
 # Some of these import are needed even they haven't been used explicitly here
-import random
 import gym
 # pycharm may not highlight this one but it is needed
 import gym_cenvs
@@ -12,7 +11,6 @@ import argparse
 import matplotlib.pyplot as plt
 from results_dir_manager import ResultDirManager
 from arm_pytorch_utilities.rand import seed
-from data_augmentation import SimDomainRandomization
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -29,10 +27,9 @@ if __name__ == '__main__':
     # Display the images being produced
     parser.add_argument("--terminate-at-done", action="store_true")
     parser.add_argument("--terminate-off-screen", action="store_true")
-
     args = parser.parse_args()
 
-    # Create a gym object for the environment
+    # Create and seed a gym object for the environment
     seed(args.seed)
     env_name = args.env
     env = gym.make(env_name)
@@ -45,7 +42,6 @@ if __name__ == '__main__':
     # Create dir manager object for saving results
     mydirmanager = ResultDirManager()
     mydirmanager.add_location('cur_dataset', 'data', make_dir_if_none=True)
-
 
     # Trajectory index
     traj_idx = 0
@@ -88,11 +84,9 @@ if __name__ == '__main__':
                     img.set_data(observation[:, :, :3])
                 plt.pause(0.01)
                 plt.draw()
-            # if args.terminate_at_done and done:
-            #     break
-            #
-            # if args.terminate_off_screen and (np.abs(state[0]) > 1.7):
-            #     break
+            # If early termination criteria reached
+            if done:
+                break
             # We save
             # observation at t
             # state at t
@@ -102,8 +96,7 @@ if __name__ == '__main__':
             traj_actions.append(action)
             # Add observation to tmp list
             traj_observations.append(observation)
-            if done:
-                break
+
         # If traj was len long, then save to disk
         if len(traj_observations) == args.len:
             all_observations.append(traj_observations)
