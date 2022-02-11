@@ -1,5 +1,5 @@
 """
-Running mujoco-gym environments
+    Run mujoco-gym environments
 """
 
 # Some of these import are needed even they haven't been used explicitly here
@@ -25,9 +25,9 @@ if __name__ == '__main__':
     # Actions in each traj
     parser.add_argument("--len", default=100, help="Trajectory length", type=int)
     # Display the images being produced
-    parser.add_argument("--show", action="store_true", help="render env")
-    # Random seed for torch, np, random, and gym
-    parser.add_argument("--seed", type=int)
+    parser.add_argument("--terminate-at-done", action="store_true")
+    parser.add_argument("--terminate-off-screen", action="store_true")
+
     args = parser.parse_args()
 
     # Create a gym object for the environment
@@ -37,6 +37,7 @@ if __name__ == '__main__':
     env.seed(args.seed)
     env.action_space.seed(args.seed)
     env.reset()
+
     # Get name of dataset type (test/train)
     dataset_name_prefix = args.dataset_type
     # Create dir manager object for saving results
