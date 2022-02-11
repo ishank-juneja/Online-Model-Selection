@@ -91,12 +91,10 @@ if __name__ == '__main__':
             # observation at t
             # state at t
             # action at t-1
-            # Add state and action to list
             traj_states.append(state)
             traj_actions.append(action)
             # Add observation to tmp list
             traj_observations.append(observation)
-
         # If traj was len long, then save to disk
         if len(traj_observations) == args.len:
             all_observations.append(traj_observations)
