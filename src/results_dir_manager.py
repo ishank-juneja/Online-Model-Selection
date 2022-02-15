@@ -1,6 +1,7 @@
 import os
 import glob
 import shutil
+import re
 
 
 # Class to translate between absolute and relative paths while reading/writing
@@ -89,24 +90,41 @@ class ResultDirManager:
         if self.loc_exists(loc_name):
             paths = glob.glob(os.path.join(self.get_abs_path(loc_name), prefix))
             # Sort the files in the order of their integer post-fixes
-            sorted_paths = sorted(paths, key=self.key_to_sort_files)
+            sorted_paths = self.natural_sort(paths)
             return sorted_paths
         else:
             raise KeyError("Invalid location {0} specified, available locations are {1}".format(loc_name, self.mylocs))
 
-    # Function to retrive the integer in the post-fixes of a file matching a certain pattern
-    def key_to_sort_files(self, fullpath: str):
-        # Extract file_name out of full_path
-        file_name = fullpath.split('/')[-1].split('.')[0]
-        # Find length of the file_name
-        name_length = len(file_name)
-        # Iterate over string in reverse untill a non numerical qty is encounterd or string ends
-        neg_idx = 0
-        while file_name[-(neg_idx + 1)].isdigit() and neg_idx < name_length:
-            neg_idx += 1
-        # First prefix_len number of chars are ignore and remaning string is converted to int
-        num = int(file_name[-neg_idx:])
-        return num
+    def list_dir_objects(self, abs_path_to_dir: str, pattern: str, return_sorted: bool = True):
+        if pattern is not None:
+            objects = glob.glob(os.path.join(abs_path_to_dir, pattern))
+        else:
+            objects = os.listdir(abs_path_to_dir)
+        object_list = []
+        for object_name in objects:
+            object_list.append(os.path.join(abs_path_to_dir, object_name))
+        if return_sorted:
+            return self.natural_sort(object_list)
+        else:
+            return object_list
+
+    def natural_sort(self, l):
+        return sorted(l, key=self._alphanum_key)
+
+    def _tryint(self, s):
+        try:
+            return int(s)
+        except:
+            return s
+
+    def _alphanum_key(self, s):
+        """
+        Turn a string into a list of string and number chunks.
+            "z23a" -> ["z", 23, "a"]
+        :param s:
+        :return:
+        """
+        return [self._tryint(c) for c in re.split('([0-9]+)', s)]
 
     # make a new dir by removing existing dir if necessary
     def make_fresh_dir(self, loc_name: str, dir_name: str, over_write: bool = True):
@@ -118,31 +136,23 @@ class ResultDirManager:
             else:
                 return True
         os.makedirs(abs_dir_path)
-
-    # Return the absolute path to a file based on a certain dict
-    def get_file_path_from_dict(self, loc_name: str, mydict: dict, prefix: str = None, suffix: str = None):
-        if self.loc_exists(loc_name):
-            fpath = ""
-            if prefix is not None:
-                fpath += prefix
-            for key, value in mydict.items():
-                fpath += key + '_' + str(value) + '_'
-            # Remove trailing '_'
-            fpath = fpath[:-1]
-            if suffix is not None:
-                fpath = fpath + suffix
-            fpath = os.path.join(self.get_abs_path(loc_name), fpath)
-            return fpath
+        return abs_dir_path
 
     # Make a new folder with name based on a dictionary of paramaters
     # For instance {size: 5, length 2} will make a folder: size_5_length_2
-    def make_dir_from_dict(self, loc_name: str, mydict: dict):
+    def make_dir_from_dict(self, loc_name: str, mydict: dict, prefix: str = None, suffix: str = None):
         if self.loc_exists(loc_name):
             dir_name = ""
             for key, value in mydict.items():
                 dir_name += key + '_' + str(value) + '_'
+            # Remove trailing '_'
+            dir_name = dir_name[:-1]
+            if prefix is not None:
+                dir_name = prefix + dir_name
+            if suffix is not None:
+                dir_name = dir_name + suffix
             # Assemble path, skip the end point `_`
-            dir_path = os.path.join(self.get_abs_path(loc_name), dir_name[:-1])
+            dir_path = os.path.join(self.get_abs_path(loc_name), dir_name)
             self.make_fresh_dir(loc_name, dir_path)
             return dir_path
 

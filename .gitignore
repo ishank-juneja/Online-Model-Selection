@@ -9,3 +9,7 @@ runs/
 mmlvspc.egg-info/
 arm_pytorch_utilities/
 .idea/
+/results/
+/src/display_npy.py
+/scripts/images2gif.sh
+/scripts/images2mp4.sh
