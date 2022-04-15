@@ -2,8 +2,8 @@
     The state space is populated with joints in the order that they are
     defined in this file. The actuators also operate on joints.
     State-Space (name/joint/parameter):
-        - ball     free      3D pose (pos(3), quat(4))
-        - ball    free       linear and angular velocities (trans(3), angular(3))
+        - ball     free      3D pose (pos(3) (m), quat(4) (dimensionless))
+        - ball    free       linear and angular velocities (trans(3) (m/s), angular(3) (rad/s))
     Actuators (name/actuator/parameter):
         - dummy_ac      dummy       None
 -->
@@ -17,8 +17,9 @@
   <option gravity="0 0 -9.81" integrator="Euler" timestep="0.05"/>
   <size nstack="3000"/>
   <worldbody>
+<!--    <geom name="gsquare" type="box" size="0.8 .1 0.8" pos="0 0 0"/>-->
     <!--    camera oriented to look head on onto the x-z plane-->
-    <camera name="rgb" mode="fixed" pos="0 4 0.0" euler="-90 0 180"/>
+    <camera name="rgb" mode="fixed" pos="0 -4 0.0" euler="90 0 0"/>
     <body name="ball" pos="0 0 0">
       <!--      free joints don't have a position and their params (pos, vel) are the params of the associated geom -->
       <joint name="dummy" type="free"/>

@@ -1,5 +1,10 @@
-from gym_cenvs.envs.conkers import ConkersEnv
-from gym_cenvs.envs.kendama import KendamaEnv
-from gym_cenvs.envs.mujoco_cartpole import MujocoCartPoleEnv
-from gym_cenvs.envs.mujoco_double_cartpole import MujocoDoubleCartPoleEnv
-from gym_cenvs.envs.mujoco_ball import MujocoBall
+# Complex LVSPC tasks
+from gym_cenvs.envs.conkers import Conkers
+from gym_cenvs.envs.kendama import Kendama
+
+# Simple Models
+from gym_cenvs.envs.dcartpole import Doublecartpole
+from gym_cenvs.envs.ball import Ball
+from gym_cenvs.envs.cartpole import Cartpole
+from gym_cenvs.envs.dubins import Dubins
+

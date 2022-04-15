@@ -1,24 +1,26 @@
-import numpy as np
 from gym import utils
+from gym_cenvs.envs.base import MujocoBase
 from gym.envs.mujoco import mujoco_env
+import numpy as np
 import os
-from mujoco_py.generated import const
 
 
-# TODO: document similar to cartpole
-class KendamaEnv(mujoco_env.MujocoEnv, utils.EzPickle):
+class Kendama(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
     def __init__(self, transparent_rope=False):
-        self.goal_x = 0
-        self.goal_y = 0
         self.done = False
         # Number of links in chain link approximation of rope
         self.nlinks = 10
-        xml_path = os.path.abspath('gym_cenvs/assets/kendama1D.xml')
+        xml_path = os.path.abspath('gym_cenvs/assets/kendama.xml')
+        MujocoBase.__init__(self)
         mujoco_env.MujocoEnv.__init__(self, xml_path, 50)
         utils.EzPickle.__init__(self)
+        # Create camera matrix for projection
+        self.cam_matrix = self.get_cam_mat()
+        # Initialize joint positions
+        self.init_qpos[1] = np.pi   # So that first segment points downwards on model initialization
+        self.init_qpos[0] = 0.0
+        # Must come after model init
         self.reset_model()
-        self.init_qpos[1] += np.pi
-        self.init_qpos[0] = 1.0
         # Make rope transparent for rope free ball dataset
         if transparent_rope:
             # Set the color of each geom associated with rope link to transparent
@@ -27,63 +29,83 @@ class KendamaEnv(mujoco_env.MujocoEnv, utils.EzPickle):
                 self.model.geom_rgba[self.sim.model.geom_name2id(gname)] = (1, 1, 1, 0)
 
     def step(self, action):
+        # Clip action to respect force actuator control range
         action = np.clip(action, -1.0, 1.0)
         self.do_simulation(action, self.frame_skip)
+        # Here both state and observation are being taken after the simulation step
+        #  this is different from the simple model environments where I take state before and observation after so
+        #  that they match, reason was that the observed frame was coming out delayed by about 1 time-step
+        #  in those environments.
+        #  Presumably this "off by 1" problem is present here as well, but it is hardly relevant here since
+        #  the physics simulation time-scale is a lot shorter (50x via self.frameskip=50) than the simple model
+        #  environments and the observation will basically be the same as the one that corresponds to the state
         state = self._get_state()
         ob = self._get_obs()
+        # True environmental cost function (to act as reward for RL environment)
         goal_cost, centre_cost = self.get_cost()
-        collision = self.collision_check()
-        #collision = 1 if goal_cost < 1e-1 else 0
 
-        self.done = self.done or (collision == 1)
-        out_of_scope = (np.abs(self.sim.data.qpos[0]) > 1.7)
-        done = out_of_scope or self.done or (collision == 2)
-        fail_cost = 100.0 if out_of_scope or (collision == 2) else 0.0
+        # Receive collision type if any
+        collision_type = self.collision_check()
 
-        if collision == 2:
-            print('Failed due to collision')
-        if out_of_scope:
+        # type=1 is success
+        self.done = self.done or (collision_type == 1)
+        # Going outside of view
+        out_of_view = (np.abs(self.sim.data.qpos[0]) > 1.7)
+        # Need to reset the model if there was a type-2 failure collision or went out of view
+        done = out_of_view or self.done
+        # Considered failure if either of these happen
+        fail_cost = 100.0 if out_of_view else 0.0
+
+        if collision_type == 1:
+            print('Task Successful')
+        if out_of_view:
             print('Failed, went offscreen')
+
+        # Note: Reward here was changed for the RL envs
         return ob, -(goal_cost + centre_cost + fail_cost), done, {'state': state, 'success': self.done}
 
-    def _get_obs(self):
-        return self.render(mode='rgb_array', width=64, height=64, camera_id=0)
-
     def collision_check(self):
-        # 0 for no collision
-        # 1 for successful collision (target and mass)
-        # 2 for unsuccessful collision (target and pole)
-        success = 0
-        fail = 0
+        """
+        :return:
+        0 for no collision
+        1 for successful collision (cup base and mass)
+        """
+        success = False
+        collision_pairs = []
         for ncon in range(self.data.ncon):
             con = self.sim.data.contact[ncon]
             g1 = self.sim.model.geom_id2name(con.geom1)
             g2 = self.sim.model.geom_id2name(con.geom2)
 
-            geom_concat = g1 + g2
+            collision_pair = g1 + '_' + g2
+            collision_pairs.append(collision_pair)
 
-            if "target" in geom_concat:
-                if "mass" in geom_concat:
+            if "cup_collision_site" in collision_pair:
+                if "gball" in collision_pair:
                     success = 1
-                if ("pole" in geom_concat) or ("cup" in geom_concat):
-                    fail = 1
-
         if success:
             return 1
-        if fail:
-            return 2
-        return 0
+        else:
+            return 0
 
     def get_cost(self):
-        x, _, y = self.sim.data.site_xpos[0]
-        # Penalty to goal
-        goal_cost = (x + self.goal_x)**2 + (y - self.goal_y) ** 2
-        xx = self.sim.data.qpos[0]
-        centre_cost = np.clip(np.abs(xx) - 1.0, 0.0, None)
+        # Get x and y coordinate of the site defined at cup base center
+        xcup, _, ycup = self.sim.data.site_xpos[0]
+        # Get x and y coordinate of the site defined at ball center
+        xball, _, yball = self.sim.data.site_xpos[1]
+
+        # Cost is distance between ball and cup
+        goal_cost = (xcup + xball)**2 + (ycup - yball) ** 2
+
+        # Cost on having to move cart?
+        cartx = self.sim.data.qpos[0]
+        centre_cost = np.clip(np.abs(cartx) - 1.0, 0.0, None)
+
         return goal_cost, centre_cost
 
-    def get_goal(self):
-        return [self.goal_x, self.goal_y]
+    def _get_obs(self):
+        size_ = self.seg_config.imsize
+        return self.render(mode='rgb_array', width=size_, height=size_, camera_id=0)
 
     def _get_state(self):
         # Old Tom version
@@ -92,10 +114,7 @@ class KendamaEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             np.clip(self.sim.data.qvel, -10, 10),
             np.clip(self.sim.data.qfrc_constraint, -10, 10)
         ]).ravel()
-        # Modified to return state of interest
-        # Keep returning cart state needed to rejection sample conkers initializations too close to the goal
-        # In addition return the sign flipped (for consistency) x cooord
-        # and the z coord (y coord in our view) of the conker
+        # Modified to return ball/mass coordinates
         # custom_state = np.concatenate([
         #     self.sim.data.qpos,  # cart x pos
         #     -1 * self.get_body_com('conker')[:1],
@@ -108,35 +127,14 @@ class KendamaEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self.reset_model()
 
     def reset_model(self):
+        # Only randomize initial cup position, keep pendulum part in mean position
         rand_mask = np.zeros(self.model.nq)
-        rand_mask[1] = 1
-        # self.do_simulation([0], self.frame_skip)
-        initial_collision = 2
-        # Now want the problem to be non trivial - can't start at goal, so will just
-        # Rejection sample goal
-        while initial_collision:
-            self.goal_x = -1 * self.get_body_com('cup')[0]
-            self.goal_y = self.get_body_com('cup')[2]
-            self.set_state(
-                self.init_qpos + rand_mask * self.np_random.uniform(low=-0.25 * np.pi, high=0.25 * np.pi,
-                                                                    size=self.model.nq),
-                self.init_qvel + rand_mask * self.np_random.randn(self.model.nv) * .1
-            )
+        rand_mask[0] = 1
 
-            # self.sim.model.body_pos[self.sim.model.body_name2id('target')] = [-self.goal_x, 0, self.goal_y]
-            self.do_simulation([0], self.frame_skip)
-            initial_collision = self.collision_check()
-            d, _ = self.get_cost()
-            # Check goal not too close to base
-            goal = self.get_goal()
-            base_x = self._get_state()[0]
-            base_2_goal = np.linalg.norm(np.array([base_x, 0.0]) - np.asarray(goal))
-            initial_collision = initial_collision or d < 1.0 or base_2_goal < 0.25
+        self.set_state(
+            self.init_qpos + rand_mask * self.np_random.uniform(low=-0.5, high=0.5, size=self.model.nq),
+            self.init_qvel + rand_mask * self.np_random.randn(self.model.nv) * .1
+        )
 
+        # Retirn the ibservation at which handing over env for stepping
         return self._get_obs()
-
-    def viewer_setup(self):
-        v = self.viewer
-        v.cam.trackbodyid = 0
-        v.cam.distance = self.model.stat.extent * 0.5
-        v.cam.lookat[2] = 0.12250000000000005  # v.model.stat.center[2]
