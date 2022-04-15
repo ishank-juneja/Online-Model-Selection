@@ -1,0 +1,38 @@
+<!-- Dubins Car Model
+    The state space is populated with joints in the order that they are
+    defined in this file. Actuators if any also operate on joints.
+    State-Space ([qpos, qvel]) (name/joint/parameter):
+        - dubinsx    slide      xpos
+        - dubinsy    slide       ypos
+        - heading     hinge      theta
+    Actuators (name/actuator-type/joint-actuated):
+        - dummy      Force (N)      posx
+-->
+<mujoco model="dubins">
+  <compiler coordinate="local" inertiafromgeom="true"/>
+  <default>
+    <joint damping="0.2"/>
+    <geom contype="3" conaffinity="3" friction="0 0 0" rgba="0.7 0.7 0 1"/>
+  </default>
+  <option gravity="0 0 -9.81" integrator="Euler" timestep="0.05"/>
+  <size nstack="3000"/>
+  <worldbody>
+<!--    camera oriented to look head on onto the x-y plane-->
+    <camera name="rgb" mode="fixed" pos="0 0 4" quat="1 0 0 0"/>
+    <body name="dubins" pos="0 0 0">
+      <joint name="posx" type="slide" axis="1 0 0" limited="true" margin="0.01" pos="0 0 0" range="-3 3"/>
+      <joint name="posy" type="slide" axis="0 1 0" limited="true" margin="0.01" pos="0 0 0" range="-3 3"/>
+<!--      A joint to update the heading of the car's geometry-->
+      <joint name="heading" type="hinge" axis="0 0 1" pos="0 0 0"/>
+<!--      Size along z does not matter for this simple model but should be kept small to avoid large shadows-->
+      <geom name="gdubins" type="box" size="0.2 0.1 0.06" pos="0 0 0" rgba="1 1 1 1"/>
+    </body>
+  </worldbody>
+  <!--  gym interface seems to need some control albeit dummy-->
+  <actuator>
+<!--    Unlike the other simple models, the dubins car model is purely a kinematic model so instead of replying on the
+simulator for dynamics we simple set the states manually in the gym environment wrapper of this xml and -->
+<!--    We still need an actuator to wrap it in a gym env so dummy motor below always actuated with 0.0 in env-->
+    <motor joint="posx" name="dummy" ctrllimited="true" ctrlrange="-1 1" gear="40"/>
+  </actuator>
+</mujoco>
