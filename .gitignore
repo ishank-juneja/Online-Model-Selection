@@ -1,3 +1,5 @@
+gym_cenvs/assets/doublecartpole_dynamic.xml
+gym_cenvs/assets/dcpole.json
 /results/
 build/
 runs/
