@@ -63,6 +63,9 @@ class EncoderEnsemble(nn.Module):
         """
         return self.config.num_ensembles
 
+    def get_config(self):
+        return self.config
+
     def send_model_to_gpu(self):
         """
         Calling cuda on NN environment sends model to GPU

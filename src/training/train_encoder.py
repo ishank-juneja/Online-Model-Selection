@@ -45,7 +45,7 @@ def main(args):
     mywriter = None
     # Use TensorBoardX object to log
     if args.log:
-        mywriter = SummaryWriter(flush_secs=20, log_dir='runs/{0}'.format(model_name))
+        mywriter = SummaryWriter(flush_secs=20, log_dir='runs/encoder/{0}'.format(model_name))
     device = config.device
 
     print('Making dataloader ...')

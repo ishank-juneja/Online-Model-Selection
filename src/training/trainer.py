@@ -52,7 +52,6 @@ class Trainer:
         num_batches = len(data_loader.dataset) // data_loader.batch_size
 
         for obs, state, action in data_loader:
-            N, T, _ = state.shape
             obs = obs.to(device=self.config.device)
             state = state.to(device=self.config.device)
             # actions = action.to(device=self.config.device)
