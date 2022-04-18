@@ -132,3 +132,11 @@ class SimpModPerception(nn.Module):
         :return:
         """
         return self.encoder.nframes
+
+    def cfg(self):
+        """
+        Returns the config of the encoder part of the perception
+        Encoder config doubles as config for simple-model itself
+        :return:
+        """
+        return self.encoder.config

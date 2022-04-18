@@ -5,3 +5,4 @@ from src.config.ball_config import Config as BallConfig
 from src.config.cartpole_config import Config as CartpoleConfig
 from src.config.dcartpole_config import Config as DcartpoleConfig
 from src.config.dubins_config import Config as DubinsConfig
+from src.config.smodel_lib_config import SimpModLibConfig

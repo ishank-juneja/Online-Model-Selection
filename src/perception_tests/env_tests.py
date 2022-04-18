@@ -38,7 +38,9 @@ class ConkersVizTest(BaseVizTest):
         # Create a dir for saving the frames that make up the GIFs
         self.dir_manager.add_location('tmp', 'results/videos/perception/{0}_conkers/tmp'.format(self.model.model_name))
 
-        # Create and seed cartpole environment object
+        # TODO: Replace the Kendama env frames with the conkers environment stuff ...
+
+        # Create and seed Conkers environment object
         self.env_name = "Conkers-v0"
 
         self.env = gym.make(self.env_name)

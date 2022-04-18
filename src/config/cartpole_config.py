@@ -1,9 +1,14 @@
 from src.config import CommonEncConfig
+from src.simp_mod_library.simp_mod_transitions import CartPoleDynamics
+import torch
 
 
 class Config(CommonEncConfig):
     def __init__(self, data_folder: str = None):
         super(Config, self).__init__(data_folder)
+
+        # Number of parameters in the dynamics that are unobservable from images (example mass)
+        self.param_dimension = 3
 
         # Needed for both training and assembling encoder
         # Dimension of complete state needed to perform planning with
@@ -12,16 +17,17 @@ class Config(CommonEncConfig):
         # Number of position only states
         self.nqpos = 3
 
-        # Number of observable states out of state_dims
-        #  Refer to state returned by gym environment
-        #  The quantities that are observable depend on the number of
-        # consecutive simple model frames state encoder is trained with
-        # If using 1 frame
-        # self.observation_dimension = 3
-        # If using 2frame
-        self.observation_dimension = 6
+        if data_folder is not None:
+            # Number of observable states out of state_dims
+            #  Refer to state returned by gym environment
+            #  The quantities that are observable depend on the number of
+            # consecutive simple model frames state encoder is trained with
+            if self.nframes == 1:
+                self.observation_dimension = 3
+            else:
+                self.observation_dimension = 6
 
-        # Currently simple model library has single action dimension for all models
+        # Currently simple model lib has single action dimension for all models
         self.action_dimension = 1
 
         # Simple Model Perception Training
@@ -32,3 +38,18 @@ class Config(CommonEncConfig):
         self.lr_decay_rate = 0.1
         self.lr_decay_steps = 20
         self.optimiser = 'adam'
+
+        # Variance settings
+        self.emission_noise = 0.03
+        self.transition_noise = .1 * torch.ones(self.state_dimension, device=self.device)
+        self.params_noise = 1e-2 * torch.ones(self.param_dimension, device=self.device)
+
+        self.do_sys_id = False
+
+        self.dynamics_fn = CartPoleDynamics
+        self.learn_dynamics = False
+        self.learn_emission = False
+        self.linear_emission = True
+
+        self.log_params = True
+

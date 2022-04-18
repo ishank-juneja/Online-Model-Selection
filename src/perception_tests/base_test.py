@@ -69,6 +69,7 @@ class BaseVizTest(metaclass=ABCMeta):
         return object.__new__(cls)
 
     def simulate_actions_get_frames(self, actions: np.ndarray):
+
         if self.env_name == 'MujocoDoublecartpole-v0':
             # Randomize geometry
             subprocess.call(['python3', 'src/pymjcf/dcartpole_aug.py'])

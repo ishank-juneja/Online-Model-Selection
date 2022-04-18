@@ -12,7 +12,7 @@ from typing import Tuple
 
 class Segmenter:
     """
-    Wrapper class around dtc2 library default predictor
+    Wrapper class around dtc2 lib default predictor
     """
     def __init__(self, model_name: str):
         # segmentation related config

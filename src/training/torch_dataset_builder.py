@@ -4,6 +4,7 @@ import numpy as np
 from src.simp_mod_datasets import nsd
 from src.training.enc_training_augs import ImageTrajectoryAugmenter
 import torch
+from torchvision import transforms
 from typing import List
 import re
 from matplotlib import pyplot as plt
@@ -131,18 +132,17 @@ class ImageTrajectoryDataset(Dataset):
         self.display = False
 
     def preprocess_imgs(self, imgs):
-        # # Preprocess grayscale images
-        # preprocess_img = transforms.Compose([transforms.ToPILImage(),
-        #                                  transforms.Resize((self.data_config.imsize, self.data_config.imsize)),
-        #                                  transforms.ToTensor()
-        #                                  ])
-        # # make preprocess_img operate on individual frames
-        # processed_imgs = torch.stack([preprocess_img(img) for img in imgs], 0)
-        #
-        # # The -1 means infer from other dimensions
-        # processed_imgs = processed_imgs.view(self.traj_len, -1, self.imsize, self.imsize)
-        # return processed_imgs
-        return imgs
+        # Preprocess grayscale images
+        preprocess_img = transforms.Compose([transforms.ToPILImage(),
+                                         transforms.Resize((self.data_config.imsize, self.data_config.imsize)),
+                                         transforms.ToTensor()
+                                         ])
+        # make preprocess_img operate on individual frames
+        processed_imgs = torch.stack([preprocess_img(img) for img in imgs], 0)
+
+        # The -1 means infer from other dimensions
+        processed_imgs = processed_imgs.view(self.traj_len, -1, self.imsize, self.imsize)
+        return processed_imgs
 
     def npy_loader(self, path):
         sample = torch.from_numpy(np.load(path))
@@ -154,19 +154,28 @@ class ImageTrajectoryDataset(Dataset):
         loaded_obs = np.load(self.image_filenames[item])
         # Preallocate array to hold augmented version of image traj, zeros_like preserves dtype
         aug_obs = np.zeros_like(loaded_obs)
-        # Augment continguos 3 channel trajectory of images seperately and then stitch back together
+        # Augment contiguos 3 channel trajectory of images seperately and then stitch back together
         for idx in range(self.nchannels // 3):
             aug_obs[..., 3*idx:3*(idx+1)] = self.augmenter(loaded_obs[..., 3*idx:3*(idx+1)])
             if self.display:
                 display_image_traj_channel_wise(augmented=aug_obs[..., 3*idx:3*(idx+1)], original=loaded_obs[..., 3*idx:3*(idx+1)])
         aug_obs_pt = torch.from_numpy(aug_obs)
         # Change the sequence of tensor dims
-        aug_obs_pt = aug_obs_pt.permute(0, 3, 2, 1)
-        # Preprocess traj of images
-        aug_obs_prepro = self.preprocess_imgs(aug_obs_pt)
+        aug_obs_pt = aug_obs_pt.permute(0, 3, 1, 2)
+
+        # Datatype of images till here is torch.uint8 however for training we must return float images
+        #  from the dataloader. Doing images.float() results in a loss of information
+        #  so use the preprocess_imgs function instead (which prevents this info loss somehow ...)
+
+        # Tensor to hold the returned images after preprocessing
+        aug_obs_prepro = torch.zeros_like(aug_obs_pt, dtype=torch.float32)
+        # Transform images to desired format one 3-tuple of channels at a time
+        for idx in range(self.nchannels // 3):
+            aug_obs_prepro[:, 3*idx:3*(idx+1)] = self.preprocess_imgs(aug_obs_pt[:, 3*idx:3*(idx+1)])
+
         loaded_actions = self.npy_loader(self.action_filenames[item])
         loaded_states = self.npy_loader(self.state_filenames[item])
-        return aug_obs_prepro.float(), loaded_states.float(), loaded_actions.float()
+        return aug_obs_prepro, loaded_states, loaded_actions
 
     # Return total number of trajectories, one traj is one datapoint in the training loop
     def __len__(self):

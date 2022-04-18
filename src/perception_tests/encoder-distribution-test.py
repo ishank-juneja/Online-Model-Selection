@@ -20,25 +20,25 @@ def main(args):
     # Get config bject of senmble
     config = loaded_ensemble.get_config()
 
+    # Exclude all sugs list
+    exclude_all_augs_lst = ["no_bg_simp_model", "no_bg_imgnet", "no_fg_texture", "no_bg_shape", "no_noise"]
     # Make dataloader to iterate over test dataset
-    dataset_builder = MyDatasetBuilder(config=config, excluded_augs=[], augmentations=False)
+    dataset_builder = MyDatasetBuilder(config=config, excluded_augs=exclude_all_augs_lst)
 
     test_dataset = dataset_builder.get_dataset(dataset_type='test')
-    test_sampler = RandomSampler(test_dataset)
-    test_loader = DataLoader(test_dataset, sampler=test_sampler, batch_size=1,
-                             num_workers=config.num_workers, drop_last=True)
 
     # Perform inference on batches of test dataset and compute MSE separately for every member using GT labels
     #  If MSE exceeds THRESH for any member for any batch, then declare that member an outlier ...
 
+    # Number of test-points
     ntestpts = 100
     ctr = 0
 
     # Load in a trajectory of images
-    for obs, state, action in test_loader:
+    for obs, state, action in test_dataset:
+        img_np = obs[0].cpu().permute((1, 2, 0)).detach().numpy()
         if ctr < ntestpts:
-            obs = obs.to(device=config.device)
-            N, T, _ = state.size()
+            # N, T, _ = state.size()
 
             obs = obs.cpu().squeeze().detach()
             obs = obs.permute((0, 2, 3, 1))

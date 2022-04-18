@@ -3,6 +3,7 @@ from src.networks.encoder import Encoder
 from src.utils import EncDataset
 import torch
 from torch import nn
+from torchvision import transforms
 import warnings
 
 
@@ -107,14 +108,9 @@ class EncoderEnsemble(nn.Module):
         N *= self.config.num_ensembles
         return z_mu.reshape(N, T, -1), z_var.sqrt().reshape(N, T, -1)
 
-    def decode(self, z):
-        N, T, z_dim = z.shape
-        z_flat = z.view(N * T, z_dim)
-        z_flat = torch.cat((z_flat[:, 2].unsqueeze(1), z_flat[:, :2]), dim=1)
-        return self.decoder(z_flat).reshape(N, T, -1, self.config.imsize, self.config.imsize)
-
     def encode_single_obs(self, obs: np.ndarray):
         """
+        Only used at test-time / online run-time not during traning
         :param obs: observation directly from environment -- is an unprocessed numpy array
         :return: z_mu, z_std for configuration estimate
         """
@@ -169,10 +165,25 @@ class EncoderEnsemble(nn.Module):
         self.test = False
         self.train()
 
-    @staticmethod
-    def preprocess_input(observation):
-        img = torch.from_numpy(observation.copy()).permute(2, 1, 0)
-        return img.float()
+    # Do the same pre-processing here that is done while training for the passed HxWxC np.ndarray (single image)
+    #  Note must mirror actions by src.traning.torch_dataset_builder.ImageTrajectoryDataset.preprocess_imgs()
+    def preprocess_input(self, obs: np.ndarray) -> torch.Tensor:
+        # pt container to hold preprocessed image
+        obs_pt = torch.from_numpy(obs.copy())
+        # Permute dimensions to bring to torch CxHxW format
+        obs_pt = obs_pt.permute((2, 0, 1))
+        # Create float32 container for preprcocessed image to be returned
+        obs_pt_float = torch.zeros_like(obs_pt, dtype=torch.float32)
+        # create torchvision transform object to operate on 3 channels at a time
+        preprocess_img = transforms.Compose([transforms.ToPILImage(),
+                                             transforms.Resize((self.config.imsize, self.config.imsize)),
+                                             transforms.ToTensor()
+                                             ])
+
+        # Process image 1 3 tuple of channels at a time
+        for idx in range(self.nframes):
+            obs_pt_float[3*idx:3*(idx+1)] = preprocess_img(obs_pt[3*idx:3*(idx+1)])
+        return obs_pt_float
 
     @staticmethod
     def disect_model(model_name: str):
