@@ -5,7 +5,6 @@ import logging
 import numpy as np
 import os
 from src.agents import ConkersAgent
-from src.simp_mod_library.simp_mod_lib import SimpModLib
 from src.utils import ResultDirManager, setup_logging
 import torch
 
@@ -145,7 +144,7 @@ def main(args):
         # results['test_t'] = test_times_npy
         # savemat('{}_trial_{}.mat'.format(config.episode_fname, trial), results)
 
-        agent.model_lib['cartpole'].trans_dist.save_model('model_w_GP')
+        # agent.model_lib['cartpole'].trans_dist.save_model('model_w_GP')
         print('Mean training sucess rate over trials')
         print(np.mean(train_success_npy, axis=0))
         print('Mean testing success rate over trials')
