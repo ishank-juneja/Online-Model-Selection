@@ -1,5 +1,6 @@
 from src.config import CommonEncConfig
-from src.simp_mod_library.simp_mod_transitions import CartPoleDynamics
+from src.simp_mod_library.costs import CartpoleTipCost
+from src.simp_mod_library.kinodynamic_funcs import CartPoleDynamics
 import torch
 
 
@@ -12,7 +13,7 @@ class Config(CommonEncConfig):
 
         # Needed for both training and assembling encoder
         # Dimension of complete state needed to perform planning with
-        self.state_dimension = 6
+        self.state_dimension = 5
 
         # Number of position only states
         self.nqpos = 3
@@ -39,12 +40,17 @@ class Config(CommonEncConfig):
         self.lr_decay_steps = 20
         self.optimiser = 'adam'
 
+        # Pointers to filenames of trained perceptions
+        self.perception = {'encoder_model_name': "model_cartpole_enc_1frame_Apr16_18-53-27",
+                           'seg_model_name': "model_cartpole_seg_1frame_MRCNN_Apr16_08-59-19"}
+
         # Variance settings
         self.emission_noise = 0.03
         self.transition_noise = .1 * torch.ones(self.state_dimension, device=self.device)
         self.params_noise = 1e-2 * torch.ones(self.param_dimension, device=self.device)
 
         self.do_sys_id = False
+        self.param_map_estimate = False
 
         self.dynamics_fn = CartPoleDynamics
         self.learn_dynamics = False
@@ -53,3 +59,15 @@ class Config(CommonEncConfig):
 
         self.log_params = True
 
+        self.cost_fn = CartpoleTipCost
+
+        # MPPI params
+        self.mppi_noise_sigma = .5 * torch.eye(self.action_dimension, device=self.device)
+        self.mppi_lambda = 1.
+        self.u_scale = 1.0
+
+        self.beta_init = .7
+
+        self.prior_cov = 1.0
+
+        self.use_sqrt_ukf = False

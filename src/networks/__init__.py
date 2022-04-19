@@ -1,1 +1,0 @@
-from src.networks.simp_model_perception import SimpModPerception

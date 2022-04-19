@@ -2,7 +2,7 @@ from abc import ABCMeta
 import glob
 import numpy as np
 import os
-from src.networks import SimpModPerception
+from src.learned_models import SimpModPerception
 from src.plotting import SimpleModViz, GIFmaker
 from src.simp_mod_datasets import FramesHandler
 from src.utils import ResultDirManager

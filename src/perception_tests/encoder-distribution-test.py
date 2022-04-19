@@ -4,7 +4,7 @@ Since aleatoric uncertainty is built into the NN predictions, an ensemble member
 with a fixed mean and variance regardless of distribution
 """
 import argparse
-from src.networks.ensemble import EncoderEnsemble
+from src.learned_models.ensemble import EncoderEnsemble
 from src.training import MyDatasetBuilder
 from torch.utils.data import DataLoader, RandomSampler
 

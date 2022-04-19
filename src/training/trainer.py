@@ -1,7 +1,7 @@
 import torch
 from torch import optim
 from torch.distributions import Normal
-from src.networks.ensemble import EncoderEnsemble
+from src.learned_models.ensemble import EncoderEnsemble
 
 
 class Trainer:

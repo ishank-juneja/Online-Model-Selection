@@ -1,5 +1,5 @@
 import argparse
-from src.networks.simp_model_perception import SimpModPerception
+from src.learned_models.simp_model_perception import SimpModPerception
 
 
 def main(args):

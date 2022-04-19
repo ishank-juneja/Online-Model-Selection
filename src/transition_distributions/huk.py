@@ -1,11 +1,11 @@
 import torch
 from src.filters import UnscentedKalmanFilter
-from src.transition_models import TransitionDeterministicModel, EmissionModel, LinearEmission
+from src.learned_models import TransitionDeterministicModel, EmissionModel, LinearEmission
 from torch.distributions import Normal, MultivariateNormal
 from torch.distributions.kl import kl_divergence
 
 
-class UnscentedKalmanTransitions:
+class HeuristicUnscentedKalman:
     def __init__(self, config):
         self.config = config
 

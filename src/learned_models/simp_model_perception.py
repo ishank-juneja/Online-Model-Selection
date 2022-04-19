@@ -1,6 +1,7 @@
+import logging
 import numpy as np
-from src.networks.ensemble import EncoderEnsemble
-from src.networks.segmenter import Segmenter
+from src.learned_models.ensemble import EncoderEnsemble
+from src.learned_models.segmenter import Segmenter
 from torch import nn
 
 
@@ -22,6 +23,8 @@ class SimpModPerception(nn.Module):
         # Encoder
         self.encoder = EncoderEnsemble(encoder_model_name, load_model=True)
         self.encoder.send_model_to_gpu()
+        # This wrapper class is only invoked at test time, never at train ...
+        self.encoder.eval_mode()
 
         # Check encoder and segmenter for compatibility and retrieve the down-sample ratio
         self.downsample_by = self.check_compatible()
@@ -42,7 +45,7 @@ class SimpModPerception(nn.Module):
         # Stitch together model names into single coherent irredundant  name
         self.model_name = self.simp_model + '_' + seg_model_unique + '_' + enc_model_unique
 
-        print("Loaded in perception model {0}".format(self.model_name))
+        logging.info("Loaded in perception model {0}".format(self.model_name))
 
     def forward(self, frame: np.ndarray):
         """

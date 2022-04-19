@@ -1,6 +1,6 @@
 import argparse
 import numpy as np
-from src.networks.ensemble import EncoderEnsemble
+from src.learned_models.ensemble import EncoderEnsemble
 from src.plotting import GIFmaker, SimpleModViz
 import torch
 

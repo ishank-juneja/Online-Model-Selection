@@ -1,5 +1,5 @@
 import numpy as np
-from src.networks.encoder import Encoder
+from src.learned_models.encoder import Encoder
 from src.utils import EncDataset
 import torch
 from torch import nn

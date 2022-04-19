@@ -5,7 +5,7 @@ from detectron2.engine.defaults import DefaultPredictor
 from detectron2.projects import point_rend
 import os
 from src.config import SegConfig
-from src.networks.masker import Masker
+from src.learned_models.masker import Masker
 from src.utils import SegDataset
 from typing import Tuple
 
@@ -131,13 +131,13 @@ class Segmenter:
         #  which are the cases of single-frame and concatanted frame with a single disjoint mask
         if self.ninstances == 1:
             # Extract the top mask as a torch tensor
-            # TODO: Also extract confidence score at this point through dictionary
             top_mask = found_instances[0].get_fields()['pred_masks']
+            top_score = found_instances[0].get_fields()['scores']
             # Convert CxHxW tensor to HxWxC numpy array
             top_mask_np = top_mask.permute((1, 2, 0)).cpu().detach().numpy()[:, :, 0]
-            # conf =
+            # Convert top score pt cuda tensor to float
+            conf = top_score.cpu().detach().numpy()[0]
         elif self.ninstances == 2:
-            # TODO: Return average confidence score in this case
             # Extract top LHP mask and top RHP mask
             #  Note: White line visual cue gets masked out as well
             found_LHP = False
@@ -150,22 +150,23 @@ class Segmenter:
                 box_x = instance.get_fields()['pred_boxes'].get_centers()[0][0]
                 if box_x > self.seg_config.imsize and not found_RHP:
                     # Found RHP mask
-                    # TODO: Also extract confidence score at this point through dictionary
                     # conf_right =
                     rhp_mask = instance.get_fields()['pred_masks']
+                    rscore = instance.get_fields()['scores']
+                    conf_right = rscore.cpu().detach().numpy()[0]
                     found_RHP = True
                 elif not found_LHP:
                     # Found LHP mask
-                    # conf_left =
-                    # TODO: Also extract confidence score at this point through dictionary
                     lhp_mask = instance.get_fields()['pred_masks']
+                    lscore = instance.get_fields()['scores']
+                    conf_left = lscore.cpu().detach().numpy()[0]
                     found_LHP = True
                 elif found_LHP and found_RHP:
                     break
-            # conf = (conf_left + conf_right)/2
-            # Can't segment out anything in this casa ...
+            # If we can't find something in both left half and right half, return unsegmented ...
             if not (found_LHP and found_RHP):
                 return frame, self.seg_thresh
+            conf = (conf_left + conf_right)/2
             # Combine LHP and RHP masks into a single mask
             #  - - - - - - Not Tested - - - - - - -
             lhp_mask_np = lhp_mask.permute((1, 2, 0)).cpu().detach().numpy()[:, :self.seg_config.imsize, 0]
@@ -176,6 +177,5 @@ class Segmenter:
             raise NotImplementedError("Unsupported number of masks per frame")
 
         masked = self.masker.apply_mask(frame, top_mask_np)
-        # TODO: Return confience score as well over class
-        # return masked, conf
-        return masked
+        return masked, conf
+        # return masked

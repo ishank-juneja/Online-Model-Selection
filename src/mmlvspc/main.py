@@ -5,7 +5,6 @@ import logging
 import numpy as np
 import os
 from src.agents import ConkersAgent
-from src.config import SimpModLibConfig
 from src.simp_mod_library.simp_mod_lib import SimpModLib
 from src.utils import ResultDirManager, setup_logging
 import torch
@@ -35,21 +34,10 @@ def main(args):
     # set seed
     seed(randseed=args.seed)
 
-    # Create lib config object
-    lib_cfg = SimpModLibConfig()
-
-    # Create list of dict containing loadable pt model names of used models using lib config
-    load_name_lst = []
-    for smodel in args.models:
-        load_name_lst.append(lib_cfg[smodel])
-
-    mylib = SimpModLib(load_name_lst)
-
     if task_name == 'conkers':
-        agent = ConkersAgent(smodel_lib=mylib)
+        agent = ConkersAgent(smodel_list=args.models)
     else:
         raise NotImplementedError
-
     logging.info("Created agent for task {0}".format(task_name))
 
     train_success = []
@@ -59,14 +47,8 @@ def main(args):
     trial = 0
 
     while trial < args.ntrials:
-        agent.model.transition.reset_params()
-        agent.CostFn.iter = 0
-        if config.use_online_GP:
-            agent.model.reset_model()
-            agent.CostFn.uncertainty_cost = 0.0
-
-        #agent.load_data()
-        #agent.train_on_episode()
+        # Reset the learnable params in model library
+        agent.model_lib.reset()
 
         ep = 0
         episode_train_times = []
@@ -75,30 +57,31 @@ def main(args):
         episode_test_success = []
 
         if trial > 0:
-            print('trial: {} '.format(trial))
-            print(np.mean(np.asarray(train_success), axis=0))
+            train_success_rate = np.mean(np.asarray(train_success), axis=0)
+            logging.info("Trial: {0} training success rate {1}".format(trial, train_success_rate))
 
         t_success = []
         t_times = []
-        if config.test_first:
-            for test in range(config.num_tests):
-                print_memory_usage()
-                fail, t = agent.do_episode()
-                t_success.append(0. if (fail or t == config.episode_T - 1) else 1.)
-                t_times.append(t)
-                print(test, not fail, t)
-                if config.save_episode_data:
-                    agent.save_episode_data('{}_trial_{}_ep_{}_test_{}'.format(fname_pre, trial, ep, test))
+
+        logging.info("Testing before trial {0}".format(trial))
+        for test in range(20):
+            fail, t = agent.do_episode()
+            t_success.append(0. if (fail or t == agent.episode_T - 1) else 1.)
+            t_times.append(t)
+            print(test, not fail, t)
+            # if config.save_episode_data:
+            #     agent.save_episode_data('{}_trial_{}_ep_{}_test_{}'.format(fname_pre, trial, ep, test))
 
         print(np.mean(t_success))
         episode_test_times.append(t_times)
         episode_test_success.append(t_success)
 
-        while ep < config.num_episodes:
-            print_memory_usage()
+        while ep < args.nepisodes:
             fail, t = agent.do_episode(action_noise=True)
-            if config.do_online_learning:
+
+            if args.do_online_learning:
                 agent.store_episode_data()
+
             if t < 5:
                 continue
 
@@ -107,16 +90,18 @@ def main(args):
 
             ep += 1
 
-            if config.save_episode_data:
-                agent.save_episode_data('{}_trial_{}_ep_{}'.format(fname_pre, trial, ep))
+            # if config.save_episode_data:
+            #     agent.save_episode_data('{}_trial_{}_ep_{}'.format(fname_pre, trial, ep))
 
-            episode_train_success.append(0. if (fail or t == config.episode_T-1) else 1.)
+            episode_train_success.append(0. if (fail or t == agent.episode_T - 1) else 1.)
             print(episode_train_success[-1])
-            print_memory_usage()
+
             print(ep)
-            if (ep <= config.num_episodes) and (ep % config.train_interval == 0):
-                print_memory_usage()
-                if config.do_online_learning:
+
+            # Retrain online learned transition distribution
+            train_interval = 1
+            if (ep <= args.nepisodes) and (ep % train_interval == 0):
+                if args.do_online_learning:
                     try:
                         agent.train_on_episode()
                     except Exception as e:
@@ -127,15 +112,14 @@ def main(args):
                         continue
 
                 t_success = []
-                for test in range(config.num_tests):
-                    print_memory_usage()
+                for test in range(20):
                     fail, t = agent.do_episode()
-                    t_success.append(0. if (fail or t == config.episode_T-1) else 1.)
+                    t_success.append(0. if (fail or t == agent.episode_T-1) else 1.)
                     t_times.append(t)
-                    if config.do_online_learning:
+                    if args.do_online_learning:
                         print(test, not fail, t)
-                    if config.save_episode_data:
-                        agent.save_episode_data('{}_trial_{}_ep_{}_test_{}'.format(fname_pre, trial, ep, test))
+                    # if config.save_episode_data:
+                    #     agent.save_episode_data('{}_trial_{}_ep_{}_test_{}'.format(fname_pre, trial, ep, test))
 
                 print(np.mean(t_success))
                 episode_test_success.append(t_success)
@@ -147,21 +131,21 @@ def main(args):
         train_success.append(episode_train_success)
         test_times.append(episode_test_times)
         trial += 1
-        agent.model.saved_data = None
-        agent.model.trained = False
+        agent.model_lib['cartpole'].saved_data = None
+        agent.model_lib['cartpole'].trained = False
 
         train_success_npy = np.asarray(train_success)
         test_success_npy = np.asarray(test_success)
         test_times_npy = np.asarray(test_times)
         #print(np.mean(test_success, axis=0))
-        results = dict()
-        from scipy.io import savemat
-        results['train_s'] = train_success_npy
-        results['test_s'] = test_success_npy
-        results['test_t'] = test_times_npy
-        savemat('{}_trial_{}.mat'.format(config.episode_fname, trial), results)
+        # results = dict()
+        # from scipy.io import savemat
+        # results['train_s'] = train_success_npy
+        # results['test_s'] = test_success_npy
+        # results['test_t'] = test_times_npy
+        # savemat('{}_trial_{}.mat'.format(config.episode_fname, trial), results)
 
-        agent.model.save_model('model_w_GP')
+        agent.model_lib['cartpole'].trans_dist.save_model('model_w_GP')
         print('Mean training sucess rate over trials')
         print(np.mean(train_success_npy, axis=0))
         print('Mean testing success rate over trials')
@@ -186,9 +170,17 @@ if __name__ == '__main__':
                         action='store',
                         type=int,
                         default=3,
-                        help="Number of trials for mm-lvspc",
-                        dest="seed",
-                        metavar="seed")
+                        help="Number of independent trials for mm-lvspc",
+                        dest="ntrials",
+                        metavar="ntrials")
+
+    parser.add_argument("--nepisodes",
+                        action='store',
+                        type=int,
+                        default=20,
+                        help="Number of episodes per trial",
+                        dest="nepisodes",
+                        metavar="nepisodes")
 
     parser.add_argument("--models",
                         action='store',
@@ -206,6 +198,11 @@ if __name__ == '__main__':
                         help="seed np, torch and random libs",
                         dest="seed",
                         metavar="seed")
+
+    parser.add_argument("--do-online-learning",
+                        action='store_true',
+                        help="Whether to update transition models online",
+                        dest="do_online_learning")
 
     args = parser.parse_args()
 

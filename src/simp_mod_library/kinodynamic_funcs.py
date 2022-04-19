@@ -91,7 +91,7 @@ class CartPoleDynamics(nn.Module):
         b2 = self.linear_damping
 
         g = self.g
-        force = -40.0 * action.clamp(min=-1, max=1)
+        force = 40.0 * action.clamp(min=-1, max=1)
 
         # Do dynamics
         tmp = l * (mc + mp * sintheta * sintheta)
