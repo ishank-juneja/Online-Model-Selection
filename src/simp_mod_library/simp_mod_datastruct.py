@@ -9,7 +9,7 @@ from typing import Type, Union
 
 class SimpModStruct:
     def __init__(self, simp_mod: str, transition_dist: Union[Type[HeuristicUnscentedKalman],
-                                                             Type[GPUnscentedKalman]]):
+                                                             Type[GPUnscentedKalman]], goal):
         """
         Class to encapsulate the attributes associated with a single simple model
         Attributes:
@@ -38,7 +38,7 @@ class SimpModStruct:
         # Cost function is a task dependent attribute of a simple model that allows planner to use
         #  approximate simple models to plan action sequences. Requires task at invocation
         # Since it is task dependent it is set in task_agent
-        self.cost_fn = None
+        self.cost_fn = self.cfg.cost_fn(goal)
 
         # Transition distribution p_z is an online learned gaussian distribution parameterized as mu, Sigma
         #  Effectively it is a function from state and action to next state and predicted uncertainty

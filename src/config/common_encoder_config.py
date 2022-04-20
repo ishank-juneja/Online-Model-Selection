@@ -45,3 +45,18 @@ class CommonEncConfig:
         # Camera matrix path for visualization
         #  All models except for dubins car share their camera matrix
         self.cam_mat_path = "data/cam_matrix.npy"
+
+        # TODO: Remove?
+        # Online GP learning
+        self.do_online_learning = True
+        self.use_online_GP = True
+        self.use_online_NN = False
+        self.fit_params_episodic = False
+        self.online_epochs = 100
+        self.online_lr = 1e-1
+        self.online_samples = 1
+        self.overshoot_d = 1
+        self.beta_init = .7
+        self.train_interval = 1
+        self.test_first = True
+        self.gp_zero_mean = True

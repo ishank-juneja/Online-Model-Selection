@@ -4,10 +4,11 @@ from typing import List, Type, Union
 
 
 class SimpModLib:
-    def __init__(self, model_names: List[str], online_gp: bool):
+    # TODO: Add type hint for goal
+    def __init__(self, model_names: List[str], online_gp: bool, goal):
         """
         :param model_names: List of names of simple models in library
-         :param Whether to use online GP as transition model or something else
+        :param Whether to use online GP as transition model or something else
         """
         # Infer number of models in lib
         self.nmodels = len(model_names)
@@ -24,7 +25,7 @@ class SimpModLib:
 
         # Load in perceptions
         for mod_name in model_names:
-            smodel_struct = SimpModStruct(simp_mod=mod_name, transition_dist=transition_dist)
+            smodel_struct = SimpModStruct(simp_mod=mod_name, transition_dist=transition_dist, goal=goal)
             self.lib[mod_name] = smodel_struct
 
         # List of available simple models
@@ -58,6 +59,3 @@ class SimpModLib:
             if self.online_gp:
                 model_struct.trans_dist.reset_model()
 
-    def set_cost_fn(self, goal):
-        for model in self.smodels:
-            self.lib[model].cost_fn = self.lib[model].cfg.cost_fn(goal)

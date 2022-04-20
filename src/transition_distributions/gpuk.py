@@ -1,3 +1,4 @@
+import logging
 from src.learned_models.gp_transition import GPDynamics
 from src.transition_distributions.huk import HeuristicUnscentedKalman
 from src.filters.gpukf import GPUnscentedKalmanFilter
@@ -74,6 +75,7 @@ class GPUnscentedKalman(HeuristicUnscentedKalman):
         return super().update(z, x_mu, x_sigma, R)
 
     def train_on_episode(self):
+        logging.debug("Entered train on episode ...")
         '''
             Train GP model based on data from episodes z_mu, z_std, u
             For now assume z_mu, z_std, u are a single episodes, of length T x nz, T x nu

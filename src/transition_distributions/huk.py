@@ -1,12 +1,15 @@
 import torch
+from torch import nn
 from src.filters import UnscentedKalmanFilter
 from src.learned_models import TransitionDeterministicModel, EmissionModel, LinearEmission
 from torch.distributions import Normal, MultivariateNormal
 from torch.distributions.kl import kl_divergence
 
 
-class HeuristicUnscentedKalman:
+class HeuristicUnscentedKalman(nn.Module):
     def __init__(self, config):
+        super(HeuristicUnscentedKalman, self).__init__()
+
         self.config = config
 
         self.max_std = 0.1

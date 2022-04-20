@@ -18,7 +18,7 @@
   <option gravity="1e-5 0 -9.81" integrator="RK4" timestep="0.001"/>
   <size nstack="3000"/>
   <worldbody>
-    <camera name="rgb" mode="fixed" pos="0 -4 0.0" euler="90 0 0"/>
+    <camera name="crgb" mode="fixed" pos="0 -4 0.0" euler="90 0 0"/>
     <body name="cart" pos="0 0 0">
       <joint axis="1 0 0" limited="true" margin="0.01" name="slider" pos="0 0 0" range="-20 20" stiffness="0" type="slide"/>
       <!--      the actuation in the conkers environment is identical to the one in cartpole with the cart
@@ -73,7 +73,7 @@
         </body>
 <!--    Target location rigidly attached to worldbody-->
     <body name="target" pos="-0.75 0 -0.75">
-      <geom rgba="1 1 1 1" size="0.1 0.1" mass="1." type="sphere" name="gtarget" conaffinity="2" contype="2"/>
+      <geom rgba="1 1 1 0" size="0.1 0.1" mass="1." type="sphere" name="gtarget" conaffinity="2" contype="2"/>
     </body>
   </worldbody>
   <actuator>

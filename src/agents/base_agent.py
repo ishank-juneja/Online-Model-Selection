@@ -1,5 +1,7 @@
-import logging
+import gym
+import gym_cenvs
 from abc import ABCMeta
+import logging
 import numpy as np
 from src.mp2i import MPPI
 from src.simp_mod_library.simp_mod_lib import SimpModLib
@@ -11,22 +13,43 @@ class BaseAgent(metaclass=ABCMeta):
     """
     Base class for constructing agents that control the complex object using passed Simple Model Library
     """
-    def __init__(self, smodel_list: List[str]):
-        # # Dummy env var over-riden by child classes
-        # self.env = None
+    def __init__(self, smodel_list: List[str], env_name: str):
+
+        self.env_name = env_name
+        self.env = gym.make(self.env_name)
+        self.env.seed(0)
+        self.env.action_space.seed(0)
+
+        # Set cost functions of lib based on task
+        goal = self.env.get_goal()
+
+        # Actions per loop iteration / nrpeeats for action
+        self.actions_per_loop = 1
+
+        self.action_dimension = 1
+
+        # Planning/Control horizon for Conkers task
+        self.episode_T = 100
 
         # Whether to online learn GP as transition model
         online_gp = True
 
-        self.model_lib = SimpModLib(smodel_list, online_gp)
+        self.model_lib = SimpModLib(smodel_list, online_gp, goal)
 
-        # Task dependent parameters
-        self.episode_T: int = None
-        self.actions_per_loop: int = None
-        self.env = None
-
-        self.action_dimension: int = None
-        self.controller = None
+        # Controller related config for task
+        self.controller = MPPI(dynamics=self.model_lib['cartpole'].trans_dist.sample_dynamics,
+                               running_cost=None,
+                               nx=self.model_lib['cartpole'].state_dim() * 2,
+                               noise_sigma=self.model_lib['cartpole'].mppi_noise_sigma(),
+                               num_samples=1000,
+                               horizon=20,
+                               lambda_=self.model_lib['cartpole'].mppi_lambda(),
+                               device=self.model_lib['cartpole'].cfg.device,
+                               terminal_state_cost=self.model_lib['cartpole'].cost_fn.compute_cost,
+                               u_scale=self.model_lib['cartpole'].cfg.u_scale,
+                               u_max=1.0,
+                               u_min=-1.0,
+                               u_per_command=self.actions_per_loop)
 
         self.state_dim = self.model_lib['cartpole'].cfg.state_dimension
         self.device = self.model_lib['cartpole'].cfg.device
@@ -41,21 +64,6 @@ class BaseAgent(metaclass=ABCMeta):
         if cls is BaseAgent:
             raise TypeError(f"only children of '{cls.__name__}' may be instantiated")
         return object.__new__(cls)
-
-    def make_planner(self):
-        self.controller = MPPI(dynamics=self.model_lib['cartpole'].trans_dist.sample_dynamics,
-                               running_cost=None,
-                               nx=self.model_lib['cartpole'].state_dim() * 2,
-                               noise_sigma=self.model_lib['cartpole'].mppi_noise_sigma(),
-                               num_samples=1000,
-                               horizon=20,
-                               lambda_=self.model_lib['cartpole'].mppi_lambda(),
-                               device=self.model_lib['cartpole'].cfg.device,
-                               terminal_state_cost=self.model_lib['cartpole'].cost_fn.compute_cost,
-                               u_scale=self.model_lib['cartpole'].cfg.u_scale,
-                               u_max=1.0,
-                               u_min=-1.0,
-                               u_per_command=self.actions_per_loop)
 
     def reset_trial(self):
         #TODO make this a dictionary?
