@@ -75,7 +75,7 @@ class GPUnscentedKalman(HeuristicUnscentedKalman):
         return super().update(z, x_mu, x_sigma, R)
 
     def train_on_episode(self):
-        logging.debug("Entered train on episode ...")
+        logging.debug("Entered train on episode of GPUK ...")
         '''
             Train GP model based on data from episodes z_mu, z_std, u
             For now assume z_mu, z_std, u are a single episodes, of length T x nz, T x nu
@@ -87,6 +87,8 @@ class GPUnscentedKalman(HeuristicUnscentedKalman):
                                                                               self.config.action_dimension,
                                                                               self.config.param_dimension,
                                                                               self.Q, self.R, self.config.device)
+
+        # The train_on_episode of base class HUK performs sys-id
         if self.config.fit_params_episodic:
             super().train_on_episode()
 
@@ -94,7 +96,8 @@ class GPUnscentedKalman(HeuristicUnscentedKalman):
             z_mu = self.saved_data['z_mu'].clone().to(device=self.config.device)
             z_std = self.saved_data['z_std'].clone().to(device=self.config.device)
             u = self.saved_data['u'].clone().to(device=self.config.device)
-
+        else:
+            raise ValueError("Attempting to fit params with empty dataset")
 
         self.trained = True
 

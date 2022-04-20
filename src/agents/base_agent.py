@@ -156,6 +156,8 @@ class BaseAgent(metaclass=ABCMeta):
         total_reward = 0
         observed_mu = self.x_mu
         self.save_rollout(rollout)
+
+        # TODO: Eventually this should not be a loop ...
         for i in range(actions.size()[0]):
             #print(self.x_mu)
 
@@ -193,30 +195,42 @@ class BaseAgent(metaclass=ABCMeta):
 
     @staticmethod
     def chunk_trajectory(z_mu, z_std, u, H=5):
-        '''
-        Takes z_mu, z_std, u all tensors
-        gets T x nz, T x nz, T x nu
-        Chunks into N x H x nz/nu
-        Even split trajectories (discards extra data)
-        '''
-
+        """
+        Takes z_mu, z_std, u as tensors of shapes T x nz, T x nz, T x nu resp.
+        Divides these trajectories into chunks of size N x H x nz/nu
+        Even splits the trajectories (discards extra trailing data)
+        :param z_mu: Mean over-states returned by perception
+        :param z_std: Std-dev over state validity returned by perception
+        :param u: actions
+        :param H: chunk size
+        :return:
+        """
+        # TODO: This may be redundant if both are guaranteed same T
         T = min(z_mu.size(0), u.size(0))
         N = T // H
-        z_mu = z_mu[:N * H].view(N, H, -1)
-        z_std = z_std[:N * H].view(N, H, -1)
-        u = u[:N * H].view(N, H, -1)
 
-        return z_mu, z_std, u
+        # Truncate and view as desired shape
+        z_mu_chunks = z_mu[:N * H].view(N, H, -1)
+        z_std_chunks = z_std[:N * H].view(N, H, -1)
+        u_chunks = u[:N * H].view(N, H, -1)
+
+        return z_mu_chunks, z_std_chunks, u_chunks
 
     def store_episode_data(self):
-        u = torch.from_numpy(np.asarray(self.action_history)).squeeze(1)
-        z_mu = torch.from_numpy(np.asarray(self.z_mu_history)).squeeze(1)
-        z_std = torch.from_numpy(np.asarray(self.z_std_history)).squeeze(1)
+        """
+        Agent appends current dataset with observed data from the perception on the entire episode
+        D <- D U (mu^y_t, Sigma^y_t, u_t)_{t=1}^{T} where T < self.episode_T = duration of trajectory
+        :return:
+        """
+        u = torch.from_numpy(np.asarray(self.action_history)).squeeze(1)    # size: T
+        z_mu = torch.from_numpy(np.asarray(self.z_mu_history)).squeeze(1)   # size: T x obs_dim
+        z_std = torch.from_numpy(np.asarray(self.z_std_history)).squeeze(1) # size: T x obs_dim
 
         z_mu, z_std, u = self.chunk_trajectory(z_mu, z_std, u)
 
         # First iteration while building online dataset
         if self.model_lib['cartpole'].trans_dist.saved_data is None:
+            # Initialize dataset as empty dict
             self.model_lib['cartpole'].trans_dist.saved_data = dict()
             self.model_lib['cartpole'].trans_dist.saved_data['z_mu'] = z_mu
             self.model_lib['cartpole'].trans_dist.saved_data['z_std'] = z_std

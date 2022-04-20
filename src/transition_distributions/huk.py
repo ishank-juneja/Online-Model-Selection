@@ -1,3 +1,4 @@
+import logging
 import torch
 from torch import nn
 from src.filters import UnscentedKalmanFilter
@@ -88,8 +89,9 @@ class HeuristicUnscentedKalman(nn.Module):
         return self.ukf.smooth(forward_states)
 
     def train_on_episode(self):
+        logging.debug("Entered train episode of HUK ... ")
         """
-        Fits parameters (for cartpole) given observation history via sgd
+        Fits sys-id parameters (for cartpole) given observation history via sgd
         N should really be 1
         :return:
         """
@@ -97,15 +99,19 @@ class HeuristicUnscentedKalman(nn.Module):
             z_mu = self.saved_data['z_mu'].clone().to(device=self.config.device)
             z_std = self.saved_data['z_std'].clone().to(device=self.config.device)
             u = self.saved_data['u'].clone().to(device=self.config.device)
-
+        else:
+            raise ValueError("No saved data to estimate model params from ...")
         N, T, _ = z_mu.size()
         print(z_mu.shape)
         av_uncertainty = z_std.mean(dim=2).mean(dim=1)
 
+        # Uncertainty threshold above which an observed trajectory is trusted to be used for sys-id
         thresh = 0.06
         mask = (av_uncertainty < thresh).nonzero().squeeze(1)
+
         if not len(mask):
             return
+
         z_mu = z_mu[mask]
         z_std = z_std[mask]
         u = u[mask]

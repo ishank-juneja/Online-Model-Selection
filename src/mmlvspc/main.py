@@ -33,6 +33,7 @@ def main(args):
     # set seed
     seed(randseed=args.seed)
 
+    # Make an agent to solve task
     if task_name == 'conkers':
         agent = ConkersAgent(smodel_list=args.models)
     else:
@@ -75,9 +76,12 @@ def main(args):
         episode_test_times.append(t_times)
         episode_test_success.append(t_success)
 
+        # Run on a fixed number of episodes for every trial
         while ep < args.nepisodes:
+            # Make agent attempt the task for agent.episode_T number of steps
             fail, t = agent.do_episode(action_noise=True)
 
+            # If online learning a GP, keep assembling online learned dataset
             if args.do_online_learning:
                 agent.store_episode_data()
 
@@ -153,6 +157,8 @@ def main(args):
         print(np.std(np.mean(test_success_npy, axis=0), axis=1))
         print(test_times_npy)
 
+        agent.controller.reset()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -161,7 +167,7 @@ if __name__ == '__main__':
                         action='store',
                         type=str,
                         choices=["conkers"],
-                        help="Name of the folder into which to put dataset",
+                        help="Short name of task being performed by MM-LVSPC",
                         metavar="task",
                         dest="task")
 
@@ -200,7 +206,7 @@ if __name__ == '__main__':
 
     parser.add_argument("--do-online-learning",
                         action='store_true',
-                        help="Whether to update transition models online",
+                        help="Whether to update transition model online. Update -> Use GP, Don't Update -> Don't use GP",
                         dest="do_online_learning")
 
     args = parser.parse_args()
