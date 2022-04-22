@@ -2,7 +2,7 @@ import logging
 from src.config import BallConfig, CartpoleConfig, DcartpoleConfig, DubinsConfig
 from src.learned_models import SimpModPerception
 from src.simp_mod_library.costs import CartpoleTipCost
-from src.simp_mod_library.kinodynamic_funcs import CartPoleDynamics
+from src.simp_mod_library.kinodynamic_funcs import CartpoleDynamics
 from src.transition_distributions import HeuristicUnscentedKalman, GPUnscentedKalman
 from typing import Type, Union
 

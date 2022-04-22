@@ -57,30 +57,30 @@ class EmissionModel(nn.Module):
 
 
 class LinearEmission(nn.Module):
-
-    def __init__(self, state_dim, observation_dim, learnable=False, device='cuda:0'):
+    def __init__(self, state_dim: int, observation_dim: int, device: str):
+        """
+        Implements y_t = Cz_t + eps (eps = 0 here and gets )
+        :param state_dim: Dimension of the full state we model over
+        :param observation_dim: Dimension of observations coming out of emission model
+        :param device: cpu/gpu to put on
+        """
         super(LinearEmission, self).__init__()
 
-        #self.C = torch.tensor(([1.0, 0.0, 0.0, 0.0, 0.0],
-        #                         [0.0, 1.0, 0.0, 0.0, 0.0],
-        #                         [0.0, 0.0, 1.0, 0.0, 0.0]), device=device)
-
-
+        # Noiseless linear emission model that implements z_t = Cy_t
+        #  Assumes C is a block identity matrix with the last few state_dim - observation_dim dimensions being dropped
+        # Example: state = [x, \dot{x}] and we have single frame observations then C = [1 0; 0 0] such that
+        #
         self.C = torch.cat((torch.eye(observation_dim),
-                              torch.zeros(observation_dim, state_dim - observation_dim)), dim=1).to(device=device)
-
-        if learnable:
-            self.C = torch.nn.Parameter(0.05 * torch.randn(3, 5, device=device))
+                            torch.zeros(observation_dim, state_dim - observation_dim)), dim=1).to(device=device)
 
     def get_C(self):
         return self.C
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         return F.linear(x, self.C)
 
 
 class TransitionDeterministicModel(nn.Module):
-
     def __init__(self, state_dim, action_dim):
         super(TransitionDeterministicModel, self).__init__()
         self.recurrent = False
@@ -112,23 +112,3 @@ class TransitionDeterministicModel(nn.Module):
 
     def reset_params(self):
         pass
-
-
-class TransitionModelWithPars(nn.Module):
-
-    def __init__(self, state_dim, pars_dim, action_dim):
-        super(TransitionModelWithPars, self).__init__()
-        hidden = 32
-        self.act_fn = torch.tanh
-        self.fc1 = nn.Linear(state_dim + action_dim + pars_dim, hidden)
-        self.fc2 = nn.Linear(hidden, hidden)
-        self.fc3 = nn.Linear(hidden, state_dim)
-
-    def forward(self, state, action, pars):
-
-        hidden = torch.cat((state, action, pars), 1)
-        hidden = self.act_fn(self.fc1(hidden))
-        hidden = self.act_fn(self.fc2(hidden))
-        return self.fc3(hidden)
-
-

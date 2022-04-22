@@ -1,20 +1,32 @@
-''' UKF written in pytorch'''
 import torch
 from torch.distributions import MultivariateNormal
 
 
 class UnscentedKalmanFilter:
-
-    def __init__(self, state_dim, obs_dim, control_dim, Q, R, device):
+    def __init__(self, state_dim: int, obs_dim: int, control_dim: int, Q: torch.Tensor, R: torch.Tensor, device: str):
+        """
+        :param state_dim: Dimensionality of the (output) state to be estimated
+        :param obs_dim: Dimensionality of the input observations, which are in turn the outputs coming from the
+        perception system
+        :param control_dim: Number of controls
+        :param Q: Process noise covariance
+        :param R: Observation noise covariance
+        :param device: cpu/gpu name str to put params on
+        """
         # Prior mean should be of size (batch, state_size)
         self.state_dim = state_dim
         self.obs_dim = obs_dim
         self.control_dim = control_dim
 
+        # Utils to deterministically compute sigma points as explained in
+        #  https://groups.seas.harvard.edu/courses/cs281/papers/unscented.pdf
         self.sigma_point_selector = MerweSigmaPoints(self.state_dim, device=device)
 
+        # process noise
         self.Q = Q
+        # observation noise
         self.R = R
+
         self.device = device
 
     def update(self, measurement, mu_bar, sigma_bar, measurement_fn, R=None):

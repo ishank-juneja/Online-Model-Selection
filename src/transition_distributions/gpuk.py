@@ -35,7 +35,7 @@ class GPUnscentedKalman(HeuristicUnscentedKalman):
 
     def reset_model(self):
         self.beta = self.beta_init
-        self.ukf = UnscentedKalmanFilter(self.enhanced_state_dim, self.config.observation_dimension,
+        self.ukf = UnscentedKalmanFilter(self.config.state_dimension, self.config.observation_dimension,
                                          self.config.action_dimension, self.Q, self.R, self.config.device)
 
         self.transition = GPDynamics(self.config.state_dimension + self.config.action_dimension,

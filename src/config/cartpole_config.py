@@ -1,6 +1,6 @@
 from src.config import CommonEncConfig
 from src.simp_mod_library.costs import CartpoleTipCost
-from src.simp_mod_library.kinodynamic_funcs import CartPoleDynamics
+from src.simp_mod_library.kinodynamic_funcs import CartpoleDynamics
 import torch
 
 
@@ -45,6 +45,8 @@ class Config(CommonEncConfig):
                            'seg_model_name': "model_cartpole_seg_1frame_MRCNN_Apr16_08-59-19"}
 
         # Variance settings
+
+        # eps parameter in emission model of observations
         self.emission_noise = 0.03
         self.transition_noise = .1 * torch.ones(self.state_dimension, device=self.device)
         self.params_noise = 1e-2 * torch.ones(self.param_dimension, device=self.device)
@@ -52,7 +54,7 @@ class Config(CommonEncConfig):
         self.do_sys_id = False
         self.param_map_estimate = False
 
-        self.dynamics_fn = CartPoleDynamics
+        self.dynamics_fn = CartpoleDynamics
         self.learn_dynamics = False
         self.learn_emission = False
         self.linear_emission = True

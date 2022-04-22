@@ -2,7 +2,7 @@ import logging
 import torch
 from torch import nn
 from src.filters import UnscentedKalmanFilter
-from src.learned_models import TransitionDeterministicModel, EmissionModel, LinearEmission
+from src.learned_models import TransitionDeterministicModel, LinearEmission
 from torch.distributions import Normal, MultivariateNormal
 from torch.distributions.kl import kl_divergence
 
@@ -14,31 +14,31 @@ class HeuristicUnscentedKalman(nn.Module):
         self.config = config
 
         self.max_std = 0.1
-        # Q and R matrices
+
+        # Assemble emission model to implement y_t = Cz_t + \eps from LVSPC paper
+        # - - - - - - - - - - -
+        self.emission = LinearEmission(state_dim=self.config.state_dimension,
+                                       observation_dim=self.config.observation_dimension,
+                                       device=self.config.device)
+        # - - - - - - - - - - -
+
+        # Assemble Unscented Kalman filter
+        # - - - - - - - - - - -
+        # Q (process noise/transition noise) and R (observation noise) matrices
         self.Q = torch.diag(self.config.transition_noise).to(self.config.device)
-        self.R = torch.eye(self.config.observation_dimension, device=self.config.device) * self.config.emission_noise
+        # R implements the eps_t term in y_t = Cz_t + eps_t
+        self.R = self.config.emission_noise * torch.eye(self.config.observation_dimension, device=self.config.device)
+        self.ukf = UnscentedKalmanFilter(state_dim=self.config.state_dimension,
+                                         obs_dim=self.config.observation_dimension,
+                                         control_dim=self.config.action_dimension,
+                                         Q=self.Q,
+                                         R=self.R,
+                                         device=self.config.device)
+        # - - - - - - - - - - -
 
-        if self.config.do_sys_id:
-            self.enhanced_state_dim = self.config.state_dimension + self.config.param_dimension
-        else:
-            self.enhanced_state_dim = self.config.state_dimension
-
-        self.ukf = UnscentedKalmanFilter(self.enhanced_state_dim, self.config.observation_dimension,
-                                             self.config.action_dimension, self.Q, self.R, self.config.device)
-
-        if self.config.linear_emission:
-            self.emission = LinearEmission(self.enhanced_state_dim,
-                                           self.config.observation_dimension,
-                                           learnable=self.config.learn_emission,
-                                           device=self.config.device)
-        else:
-            self.emission = EmissionModel(self.enhanced_state_dim, self.config.observation_dimension)
-
-        if self.config.dynamics_fn is None:
-            self.transition = TransitionDeterministicModel(self.enhanced_state_dim, self.config.action_dimension)
-        else:
-            self.transition = self.config.dynamics_fn(self.config.do_sys_id, device=self.config.device,
-                                                      log_normal_params=self.config.log_params)
+        self.transition = self.config.dynamics_fn(self.config.do_sys_id,
+                                                  device=self.config.device,
+                                                  log_normal_params=self.config.log_params)
 
         self.saved_data = None
         self.start = 0
@@ -121,8 +121,6 @@ class HeuristicUnscentedKalman(nn.Module):
         if self.config.fit_params_episodic:
             print('fitting params')
             N, T, _ = z_mu.size()
-
-            init_params = self.transition.get_params().clone()
 
             param_mu = torch.nn.Parameter(torch.zeros(self.config.param_dimension, device=self.config.device))
             param_logstd = torch.nn.Parameter(torch.log(0.1 * torch.ones(self.config.param_dimension,

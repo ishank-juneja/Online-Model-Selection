@@ -43,10 +43,6 @@ class GPDynamics(gpytorch.Module):
         if self.nominal_dynamics is not None:
             self.nominal_dynamics.reset_params()
 
-    def get_params(self):
-        if self.nominal_dynamics is not None:
-            return self.nominal_dynamics.get_params()
-
     def set_params(self, params):
         if self.nominal_dynamics is not None:
             self.nominal_dynamics.set_params(params)
