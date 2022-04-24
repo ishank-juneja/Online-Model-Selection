@@ -3,7 +3,7 @@ import gym_cenvs
 from abc import ABCMeta
 import logging
 import numpy as np
-from src.mp2i import MPPI
+from src.agents import MPPI
 from src.simp_mod_library.simp_mod_lib import SimpModLib
 import torch
 from typing import List
@@ -23,7 +23,7 @@ class BaseAgent(metaclass=ABCMeta):
         # Set cost functions of lib based on task
         goal = self.env.get_goal()
 
-        # Actions per loop iteration / nrpeeats for action
+        # Actions per loop iteration / nrepeats for action
         self.actions_per_loop = 1
 
         self.action_dimension = 1
@@ -38,18 +38,18 @@ class BaseAgent(metaclass=ABCMeta):
 
         # Controller related config for task
         self.controller = MPPI(dynamics=self.model_lib['cartpole'].trans_dist.sample_dynamics,
-                               running_cost=None,
+                               trajectory_cost=self.model_lib['cartpole'].cost_fn.compute_cost,
                                nx=self.model_lib['cartpole'].state_dim() * 2,
                                noise_sigma=self.model_lib['cartpole'].mppi_noise_sigma(),
                                num_samples=1000,
                                horizon=20,
                                lambda_=self.model_lib['cartpole'].mppi_lambda(),
                                device=self.model_lib['cartpole'].cfg.device,
-                               terminal_state_cost=self.model_lib['cartpole'].cost_fn.compute_cost,
                                u_scale=self.model_lib['cartpole'].cfg.u_scale,
                                u_max=1.0,
                                u_min=-1.0,
-                               u_per_command=self.actions_per_loop)
+                               u_per_command=self.actions_per_loop,
+                               noise_abs_cost=True)
 
         self.state_dim = self.model_lib['cartpole'].cfg.state_dimension
         self.device = self.model_lib['cartpole'].cfg.device
@@ -222,7 +222,7 @@ class BaseAgent(metaclass=ABCMeta):
         D <- D U (mu^y_t, Sigma^y_t, u_t)_{t=1}^{T} where T < self.episode_T = duration of trajectory
         :return:
         """
-        u = torch.from_numpy(np.asarray(self.action_history)).squeeze(1)    # size: T
+        u = torch.from_numpy(np.asarray(self.action_history))    # size: T
         z_mu = torch.from_numpy(np.asarray(self.z_mu_history)).squeeze(1)   # size: T x obs_dim
         z_std = torch.from_numpy(np.asarray(self.z_std_history)).squeeze(1) # size: T x obs_dim
 

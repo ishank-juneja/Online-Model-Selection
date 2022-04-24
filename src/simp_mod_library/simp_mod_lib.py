@@ -4,12 +4,17 @@ from typing import List, Type, Union
 
 
 class SimpModLib:
-    # TODO: Add type hint for goal
     def __init__(self, model_names: List[str], online_gp: bool, goal):
         """
         :param model_names: List of names of simple models in library
-        :param Whether to use online GP as transition model or something else
+        :param online_gp: Whether to use online GP as transition model or something else
+        :param goal: Some notion of goal which is passed to the simple model specific cost functions
+         that are utilized by the goal
+        TODO: Make goal into a fixed task-agnostic interface, maybe a Tuple
         """
+        # Sort the model names lexicographically
+        model_names.sort()
+
         # Infer number of models in lib
         self.nmodels = len(model_names)
 
@@ -28,11 +33,22 @@ class SimpModLib:
             smodel_struct = SimpModStruct(simp_mod=mod_name, transition_dist=transition_dist, goal=goal)
             self.lib[mod_name] = smodel_struct
 
-        # List of available simple models
+        # List of available simple models, idx <-> str mapping is based on this list
         self.smodels = list(self.lib.keys())
 
-    def __getitem__(self, item: str) -> SimpModStruct:
-        return self.lib[item]
+    def __getitem__(self, item: Union[int, str]) -> SimpModStruct:
+        if type(item) == int:
+            return self.lib[self.smodels[item]]
+        elif type(item) == str:
+            return self.lib[item]
+        else:
+            raise NotImplementedError
+
+    def model_name(self, idx: int) -> str:
+        return self.smodels[idx]
+
+    def model_idx(self, name: str) -> int:
+        return self.smodels.index(name)
 
     @property
     def nmodels(self):

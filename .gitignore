@@ -19,3 +19,4 @@ mmlvspc.egg-info/
 /data.tar.gz
 /notebooks/detectron2_tutorial.py
 /installed.txt
+*.tar.gz

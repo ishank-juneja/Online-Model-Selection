@@ -36,9 +36,7 @@ class HeuristicUnscentedKalman(nn.Module):
                                          device=self.config.device)
         # - - - - - - - - - - -
 
-        self.transition = self.config.dynamics_fn(self.config.do_sys_id,
-                                                  device=self.config.device,
-                                                  log_normal_params=self.config.log_params)
+        self.transition = self.config.dynamics_fn(device=self.config.device, log_normal_params=self.config.log_params)
 
         self.saved_data = None
         self.start = 0
@@ -72,6 +70,9 @@ class HeuristicUnscentedKalman(nn.Module):
         return mu, S
 
     def sample_dynamics(self, state, action, transition=None, do_mean=False):
+        # TODO: Call the set_dynamics_mode of the Hybrid Dynamics object
+        #  If changing dynamics mode (i.e. simple model) perform a state handover
+
         x = state[:, :self.config.state_dimension]
         if transition is None:
             mu = self.transition(x, action)

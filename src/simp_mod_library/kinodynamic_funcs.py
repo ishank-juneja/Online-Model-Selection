@@ -69,6 +69,10 @@ class CartpoleDynamics(BaseDynamics):
         self.pole_mass = self.pole_mass_def
         self.angular_damping = self.angular_damping_def
 
+        # Number of states and actions in dynamics
+        self.nx = 5
+        self.nu = 1
+
     def reset_params(self):
         self.cart_mass = self.cart_mass_def
         self.pole_mass = self.pole_mass_def

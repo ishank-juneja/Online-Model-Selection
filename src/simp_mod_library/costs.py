@@ -116,4 +116,8 @@ class CartpoleTipCost:
 
         uncertainty_weight = 0.2 * self.iter
 
-        return cost.sum(dim=1) + uncertainty_weight * uncertainty_cost, actions
+        return cost.sum(dim=1) + uncertainty_weight * uncertainty_cost
+
+
+# TODO: Add a cartpole cost function that makes it swing up and reach the point with low speed for slackness to follow
+# TODO: Add a Ball cost function that makes Ball go into cup by aiming for robot position

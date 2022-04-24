@@ -1,3 +1,4 @@
+# Adapted from pytorch-mppi: https://github.com/UM-ARM-Lab/pytorch_mppi
 import torch
 import time
 import logging
@@ -6,6 +7,7 @@ from torch.distributions.multivariate_normal import MultivariateNormal
 logger = logging.getLogger(__name__)
 
 
+# Implements the rescaling of weights in MPPI paper
 def _ensure_non_zero(cost, beta, factor):
     return torch.exp(-factor * (cost - beta))
 
@@ -20,8 +22,14 @@ class MPPI():
     based off of https://github.com/ferreirafabio/mppi_pendulum
     """
 
-    def __init__(self, dynamics, running_cost, nx, noise_sigma, num_samples=100, horizon=15, device="cpu",
-                 terminal_state_cost=None,
+    def __init__(self,
+                 dynamics,
+                 trajectory_cost,
+                 nx,
+                 noise_sigma,
+                 num_samples=100,
+                 horizon=15,
+                 device="cpu",
                  lambda_=1.,
                  noise_mu=None,
                  u_min=None,
@@ -31,18 +39,17 @@ class MPPI():
                  u_scale=1,
                  u_per_command=1,
                  step_dependent_dynamics=False,
-                 dynamics_variance=None,
-                 running_cost_variance=None,
-                 sample_null_action=False):
+                 sample_null_action=False,
+                 noise_abs_cost=False):
         """
         :param dynamics: function(state, action) -> next_state (K x nx) taking in batch state (K x nx) and action (K x nu)
-        :param running_cost: function(state, action) -> cost (K x 1) taking in batch state and action (same as dynamics)
+        :param trajectory_cost: function(state, action) -> cost (K x 1) taking in batch state and action
+        (same as dynamics). Responsible for running costs, conditional costs, other kinds of costs like uncertainty ...
         :param nx: state dimension
         :param noise_sigma: (nu x nu) control noise covariance (assume v_t ~ N(u_t, noise_sigma))
         :param num_samples: K, number of trajectories to sample
         :param horizon: T, length of each trajectory
         :param device: pytorch device
-        :param terminal_state_cost: function(state) -> cost (K x 1) taking in batch state
         :param lambda_: temperature, positive scalar where larger values will allow more exploration
         :param noise_mu: (nu) control noise mean (used to bias control samples); defaults to zero mean
         :param u_min: (nu) minimum values for each dimension of control to pass into dynamics
@@ -50,18 +57,17 @@ class MPPI():
         :param u_init: (nu) what to initialize new end of trajectory control to be; defeaults to zero
         :param U_init: (T x nu) initial control sequence; defaults to noise
         :param step_dependent_dynamics: whether the passed in dynamics needs horizon step passed in (as 3rd arg)
-        :param dynamics_variance: function(state) -> variance (K x nx) give variance of the state calcualted from dynamics
-        :param running_cost_variance: function(variance) -> cost (K x 1) cost function on the state variances
         :param sample_null_action: Whether to explicitly sample a null action (bad for starting in a local minima)
+        :param noise_abs_cost: Whether to use the absolute value of the action noise to avoid bias when all states have the same cost
         """
         self.d = device
         self.dtype = noise_sigma.dtype
         self.K = num_samples  # N_SAMPLES
-        self.T = horizon  # TIMESTEPS
+        self.T = horizon  # TIMESTEPS, sometimes called H
 
         # dimensions of state and control
         self.nx = nx
-        self.nu = 1 if len(noise_sigma.shape) is 0 else noise_sigma.shape[0]
+        self.nu = 1 if len(noise_sigma.shape) == 0 else noise_sigma.shape[0]
         self.lambda_ = lambda_
 
         if noise_mu is None:
@@ -71,7 +77,7 @@ class MPPI():
             u_init = torch.zeros_like(noise_mu)
 
         # handle 1D edge case
-        if self.nu is 1:
+        if self.nu == 1:
             noise_mu = noise_mu.view(-1)
             noise_sigma = noise_sigma.view(-1, 1)
 
@@ -110,11 +116,9 @@ class MPPI():
 
         self.step_dependency = step_dependent_dynamics
         self.F = dynamics
-        self.dynamics_variance = dynamics_variance
-        self.running_cost = running_cost
-        self.running_cost_variance = running_cost_variance
-        self.terminal_state_cost = terminal_state_cost
+        self.trajectory_cost = trajectory_cost
         self.sample_null_action = sample_null_action
+        self.noise_abs_cost = noise_abs_cost
         self.state = None
 
         # sampled results from last command
@@ -123,8 +127,6 @@ class MPPI():
         self.omega = None
         self.states = None
         self.actions = None
-        if self.dynamics_variance is not None and self.running_cost_variance is None:
-            raise RuntimeError("Need to give running cost for variance when giving the dynamics variance")
 
     def _dynamics(self, state, u, t):
         return self.F(state, u, t) if self.step_dependency else self.F(state, u)
@@ -145,13 +147,24 @@ class MPPI():
         cost_total = self._compute_total_cost_batch()
 
         beta = torch.min(cost_total)
+        # noinspection PyTypeChecker
         self.cost_total_non_zero = _ensure_non_zero(cost_total, beta, 1 / self.lambda_)
 
         eta = torch.sum(self.cost_total_non_zero)
         self.omega = (1. / eta) * self.cost_total_non_zero
+
+        # - - - - - - - - - - - - - - - - - - - - - - -
+        # Compute the planned action sequence as a weighted sum
         for t in range(self.T):
             self.U[t] += torch.sum(self.omega.view(-1, 1) * self.noise[:, t], dim=0)
+        # - - - - - - - - - - - - - - - - - - - - - - -
+
+        # Extract the number of actions agent creating controller asks for in u_per_command
         actions = self.u_scale * self.U[:self.u_per_command]
+
+        # reduce dimensionality if we only need the first command (re-planning after every action)
+        if self.u_per_command == 1:
+            actions = actions[0]
 
         rollout = self.get_rollouts(state)
 
@@ -180,37 +193,42 @@ class MPPI():
         if self.sample_null_action:
             self.perturbed_action[self.K - 1] = 0
         # naively bound control
-        #self.perturbed_action = self._bound_action(self.perturbed_action)
+        # self.perturbed_action = self._bound_action(self.perturbed_action)
         self.perturbed_action = self.perturbed_action.clamp(min=self.u_min, max=self.u_max)
         # bounded noise after bounding (some got cut off, so we don't penalize that in action cost)
         self.noise = self.perturbed_action - self.U
-        action_cost = self.lambda_ * self.noise @ self.noise_sigma_inv
+
+        if self.noise_abs_cost:
+            action_cost = self.lambda_ * torch.abs(self.noise) @ self.noise_sigma_inv
+            # NOTE: The original paper does self.lambda_ * torch.abs(self.noise) @ self.noise_sigma_inv, but this biases
+            # the actions with low noise if all states have the same cost.
+            # With abs(noise) we prefer actions close to the nominal trajectory.
+        else:
+            action_cost = self.lambda_ * self.noise @ self.noise_sigma_inv  # Like original paper
 
         self.states = []
         self.actions = []
+
+        # Recursively apply the dynamics function to get the K proposed trajectories
         for t in range(self.T):
             u = self.u_scale * self.perturbed_action[:, t]
             state = self._dynamics(state, u, t)
-            if self.running_cost is not None:
-                self.cost_total += self.running_cost(state, u)
-            if self.dynamics_variance is not None:
-                self.cost_total += self.running_cost_variance(self.dynamics_variance(state))
-
             # Save total states/actions
             self.states.append(state)
             self.actions.append(u)
 
-        # Actions is N x T x nu
-        # States is N x T x nx
+        # Actions is K x T x nu, States is K x T x nx
+        # Converts list to tensor
         self.actions = torch.stack(self.actions, dim=1)
         self.states = torch.stack(self.states, dim=1)
 
-        # action perturbation cost
-        if self.terminal_state_cost:
-            terminal_cost, self.actions = self.terminal_state_cost(self.states, self.actions)
-            self.cost_total += terminal_cost
+        if self.trajectory_cost:
+            traj_cost = self.trajectory_cost(self.states, self.actions)
+            self.cost_total += traj_cost
         self.actions /= self.u_scale
-        perturbation_cost = torch.sum(self.actions * action_cost, dim=(1, 2))
+
+        # action perturbation cost
+        perturbation_cost = torch.sum(self.U * action_cost, dim=(1, 2))
         self.cost_total += perturbation_cost
         return self.cost_total
 
@@ -227,11 +245,12 @@ class MPPI():
 
     def get_rollouts(self, state, num_rollouts=1):
         """
-            :param state: either (nx) vector or (num_rollouts x nx) for sampled initial states
-            :param num_rollouts: Number of rollouts with same action sequence - for generating samples with stochastic
-                                 dynamics
-            :returns states: num_rollouts x T x nx vector of trajectories
-
+        Return the state-sequence corresponding to the MPC planned sequence of actions ...
+        Useful for debugging/visualization of planning
+        :param state: either (nx) vector or (num_rollouts x nx) for sampled initial states
+        :param num_rollouts: Number of rollouts with same action sequence - for generating samples with stochastic
+                             dynamics
+        :returns states: num_rollouts x T x nx vector of trajectories
         """
         state = state.view(-1, self.nx)
         if state.size(0) == 1:
