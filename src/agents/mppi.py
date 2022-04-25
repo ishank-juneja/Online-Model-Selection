@@ -262,6 +262,7 @@ class MPPI():
         for t in range(T):
             states[:, t + 1] = self._dynamics(states[:, t].view(num_rollouts, -1),
                                               self.u_scale * self.U[t].view(num_rollouts, -1), t)
+        # TODO: Maybe return starting from the current state
         return states[:, 1:]
 
 

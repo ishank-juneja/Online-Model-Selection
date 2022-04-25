@@ -5,6 +5,7 @@ import logging
 import numpy as np
 from src.agents import MPPI
 from src.simp_mod_library.simp_mod_lib import SimpModLib
+from src.transition_distributions import MMT
 import torch
 from typing import List
 
@@ -14,11 +15,12 @@ class BaseAgent(metaclass=ABCMeta):
     Base class for constructing agents that control the complex object using passed Simple Model Library
     """
     def __init__(self, smodel_list: List[str], env_name: str):
-
         self.env_name = env_name
         self.env = gym.make(self.env_name)
         self.env.seed(0)
         self.env.action_space.seed(0)
+
+        self.device = 'cuda:0'
 
         # Set cost functions of lib based on task
         goal = self.env.get_goal()
@@ -36,8 +38,10 @@ class BaseAgent(metaclass=ABCMeta):
 
         self.model_lib = SimpModLib(smodel_list, online_gp, goal)
 
+        self.mmt = MMT(self.model_lib, self.device)
+
         # Controller related config for task
-        self.controller = MPPI(dynamics=self.model_lib['cartpole'].trans_dist.sample_dynamics,
+        self.controller = MPPI(dynamics=self.mmt,
                                trajectory_cost=self.model_lib['cartpole'].cost_fn.compute_cost,
                                nx=self.model_lib['cartpole'].state_dim() * 2,
                                noise_sigma=self.model_lib['cartpole'].mppi_noise_sigma(),

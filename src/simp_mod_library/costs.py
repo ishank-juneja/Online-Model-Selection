@@ -1,11 +1,36 @@
+from src.simp_mod_library import SimpModLib
 import torch
+from torch import nn
 
 
-class CartpoleTipCost:
+class MMCost(nn.Module):
+    """
+    MMCost = Combined cost function for multiple models that looks up the appropriate
+    cost function based on the model being invoked to make the transition
+    """
+    def __init__(self, simp_mod_lib: SimpModLib):
+        super(MMCost, self).__init__()
+
+        # Build dynamics list and infer attributes
+        for idx in range(simp_mod_lib.nmodels):
+            model_cost = simp_mod_lib[idx].cost_fn
+
+    def forward(self, states, actions):
+        """
+
+        :param states:
+        :param actions:
+        :return:
+        """
+
+
+class CartpoleTipCost(nn.Module):
     """
     Cost is euclidean distance of cartpole end effector from some goal position in R^2
     """
     def __init__(self, goal, l=1.):
+        super(CartpoleTipCost, self).__init__()
+
         self.goal = goal
         self.l = l
         self.uncertainty_cost = 0.0
@@ -55,7 +80,7 @@ class CartpoleTipCost:
 
         return collision
 
-    def compute_cost(self, state, actions=None, verbose=False):
+    def forward(self, state, actions=None, verbose=False):
         N, T, _ = state.shape
         base_x = state[:, :, 0]
         tip_x = state[:, :, 1]
