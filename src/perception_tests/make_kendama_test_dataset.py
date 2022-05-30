@@ -6,7 +6,8 @@ import argparse
 import gym
 # pycharm may not highlight this one but it is needed
 import gym_cenvs
-from src.simp_mod_datasets import FramesHandler, make_segmentation_coco
+from src.simp_mod_datasets.frames_handler import FramesHandler
+from src.simp_mod_datasets.make_coco_json import make_segmentation_coco
 from src.utils import ResultDirManager
 from arm_pytorch_utilities.rand import seed
 

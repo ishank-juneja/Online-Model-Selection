@@ -47,6 +47,9 @@ class ConkersVizTest(BaseVizTest):
         self.env.seed(0)
         self.env.action_space.seed(0)
 
+        # Whether to use env frames or Kendama frames
+        self.use_env = True
+
         # Set the dt for plotting
         self.viz.set_delta_t(self.env.dt)
 

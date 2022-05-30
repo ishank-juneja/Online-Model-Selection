@@ -5,13 +5,14 @@ from src.perception_tests import BallVizTest, CartpoleVizTest, DcartpoleVizTest,
 
 def main(args):
     # Uncomment out the tester-run command pair to be used
-    # tester = KendamaVizTest(seg_model_name=args.seg_model_name, enc_model_name=args.enc_model_name)
+    tester = KendamaVizTest(seg_model_name=args.seg_model_name, enc_model_name=args.enc_model_name)
+    # tester = ConkersVizTest(seg_model_name=args.seg_model_name, enc_model_name=args.enc_model_name)
 
     # Tests on simple model images from training distribution
     # tester = BallVizTest(enc_model_name=args.enc_model_name)
     # tester = CartpoleVizTest(enc_model_name=args.enc_model_name)
     # tester = DcartpoleVizTest(enc_model_name=args.enc_model_name)
-    tester = DubinsVizTest(enc_model_name=args.enc_model_name)
+    # tester = DubinsVizTest(enc_model_name=args.enc_model_name)
     tester.run_perception_on_tests(viz_ver="ver3")
 
 

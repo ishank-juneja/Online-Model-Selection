@@ -1,5 +1,3 @@
-import gym
-import gym_cenvs
 from src.agents.base_agent import BaseAgent
 from typing import List
 

@@ -1,5 +1,5 @@
 import logging
-from src.config import BallConfig, CartpoleConfig, DcartpoleConfig, DubinsConfig
+from src.config.cartpole_config import Config as CartpoleConfig
 from src.learned_models import SimpModPerception
 from src.simp_mod_library.costs import CartpoleTipCost
 from src.simp_mod_library.kinodynamic_funcs import CartpoleDynamics

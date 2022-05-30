@@ -1,14 +1,19 @@
-from src.simp_mod_library import SimpModLib
+# from src.simp_mod_library import SimpModLib
 import torch
 from torch import nn
 
 
+# Options for implementing: Apply cost to every [:, idx, nx] slice of states
+#  starting from the end of trajectories
+# OR
+# Compute the [:, idx, nx] slices for all costs and linear combine them at the end using
+#  pointwise products with masks
 class MMCost(nn.Module):
     """
     MMCost = Combined cost function for multiple models that looks up the appropriate
     cost function based on the model being invoked to make the transition
     """
-    def __init__(self, simp_mod_lib: SimpModLib):
+    def __init__(self, simp_mod_lib):
         super(MMCost, self).__init__()
 
         # Build dynamics list and infer attributes
@@ -130,14 +135,6 @@ class CartpoleTipCost(nn.Module):
         uncertainty_cost = uncertainty_cost @ torch.tensor([0.01, 0.01, 0.01, 0.01, 0.01], device=uncertainty_cost.device).unsqueeze(1)
         uncertainty_cost = uncertainty_cost.sum(dim=1).squeeze(1)
         uncertainty_cost = uncertainty_cost - uncertainty_cost.mean()
-
-        if False:
-            print(uncertainty_cost.mean())
-            print(uncertainty_cost.max())
-            print(uncertainty_cost.min())
-            print(cost.sum(dim=1).mean())
-            print(cost.sum(dim=1).max())
-            print(cost.sum(dim=1).min())
 
         uncertainty_weight = 0.2 * self.iter
 

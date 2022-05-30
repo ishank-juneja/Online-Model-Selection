@@ -56,7 +56,7 @@
                               <joint axis="0 1 0" name="hinge10" pos="0 0 0" type="hinge"/>
                               <geom fromto="0 0 0 0 0 0.1" name="gpole10" rgba="1 1 1 1" size="0.1 0.05" mass="0.05" type="capsule"/>
                               <body name="conker" pos="0 0 0.1">
-                                <geom type="sphere" rgba="1 0 0 1" mass="1." size="0.2 0.2" name="gmass" contype="3" conaffinity="3"/>
+                                <geom type="sphere" rgba="1 1 1 1" mass="1." size="0.2 0.2" name="gmass" contype="3" conaffinity="3"/>
 <!--                                A tiny site location at the center of the conker/sphere/mass to compute cost while running env-->
                                 <site name="tip" pos="0 0 0." size="0.01 0.01"/>
                               </body>

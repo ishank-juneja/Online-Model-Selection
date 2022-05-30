@@ -24,7 +24,8 @@ class SimpModPerception(nn.Module):
         self.encoder = EncoderEnsemble(encoder_model_name, load_model=True)
         self.encoder.send_model_to_gpu()
         # This wrapper class is only invoked at test time, never at train ...
-        self.encoder.eval_mode()
+        # TODO: Uncomment below whjen doing control
+        # self.encoder.eval_mode()
 
         # Check encoder and segmenter for compatibility and retrieve the down-sample ratio
         self.downsample_by = self.check_compatible()
