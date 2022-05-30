@@ -5,28 +5,20 @@ import numpy as np
 import os
 
 
-class Kendama(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
-    def __init__(self, transparent_rope=False):
+class Catching(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
+    def __init__(self):
         self.done = False
-        # Number of links in chain link approximation of rope
-        self.nlinks = 10
-        xml_path = os.path.abspath('gym_cenvs/assets/kendama.xml')
+        xml_path = os.path.abspath('gym_cenvs/assets/catching.xml')
         MujocoBase.__init__(self)
         mujoco_env.MujocoEnv.__init__(self, xml_path, 50)
         utils.EzPickle.__init__(self)
         # Create camera matrix for projection
         self.cam_matrix = self.get_cam_mat()
-        # Initialize joint positions
-        self.init_qpos[1] = np.pi   # So that first segment points downwards on model initialization
-        self.init_qpos[0] = 0.0
+        # Init all joint positions and velocities to 0
+        self.init_qpos[:] = 0.0
+        self.init_qvel[:] = 0.0
         # Must come after model init
         self.reset_model()
-        # Make rope transparent for rope free ball dataset
-        if transparent_rope:
-            # Set the color of each geom associated with rope link to transparent
-            for idx in range(self.nlinks):
-                gname = "gpole{0}".format(idx + 1)
-                self.model.geom_rgba[self.sim.model.geom_name2id(gname)] = (1, 1, 1, 0)
 
     def step(self, action):
         # Clip action to respect force actuator control range
@@ -47,6 +39,11 @@ class Kendama(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
         # Receive collision type if any
         collision_type = self.collision_check()
 
+        print("Collision Type is {0}".format(collision_type))
+
+        # Override to get rid of error
+        collision_type = 0
+
         # type=1 is success
         self.done = self.done or (collision_type == 1)
         # Going outside of view
@@ -62,13 +59,13 @@ class Kendama(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
             print('Failed, went offscreen')
 
         # Note: Reward here was changed for the RL envs
-        return ob, -(goal_cost + centre_cost + fail_cost), done, {'state': state, 'success': self.done}
+        return ob, 0.0, done, {'state': state, 'success': self.done}
 
     def collision_check(self):
         """
         :return:
         0 for no collision
-        1 for successful collision (cup base and mass)
+        1 for successful collision (cup base and ball)
         """
         success = False
         collision_pairs = []
@@ -82,7 +79,10 @@ class Kendama(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
 
             if "cup_collision_site" in collision_pair:
                 if "gball" in collision_pair:
-                    success = 1
+                    success = True
+
+        print(collision_pairs)
+
         if success:
             return 1
         else:
@@ -127,14 +127,34 @@ class Kendama(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
         return self.reset_model()
 
     def reset_model(self):
-        # Only randomize initial cup position, keep pendulum part in mean position
-        rand_mask = np.zeros(self.model.nq)
-        rand_mask[0] = 1
+        # Randomize cup position along x-axis
+        cup_x = self.np_random.uniform(low=-1.7, high=1.7)
 
-        self.set_state(
-            self.init_qpos + rand_mask * self.np_random.uniform(low=-0.5, high=0.5, size=self.model.nq),
-            self.init_qvel + rand_mask * self.np_random.randn(self.model.nv) * .1
-        )
+        # Randomize initial cup velocity
+        cup_vx = self.np_random.uniform(low=-5.0, high=5.0)
 
-        # Retirn the ibservation at which handing over env for stepping
+        # Randomize ball x and y coordinates (y coordinate in viewing plane is z coordinate in space)
+        #  Ball free joint quat. has no significance due to spherical symmetry
+        ball_x = self.np_random.uniform(low=-1.0, high=1.0)
+        ball_y = 0.0
+        ball_z = self.np_random.uniform(low=1.0, high=1.7)
+        ball_xyz = np.array([ball_x, ball_y, ball_z])
+        # Sphere orientation does not matter
+        ball_quat = np.hstack((1.0, np.zeros(3, dtype=np.float64)))
+
+        # Reset ball velocity randomly in (x, y) dir and 0 for z and rotational
+        ball_vx = self.np_random.uniform(low=-5.0, high=5.0)
+        ball_vy = 0.0
+        ball_vz = self.np_random.uniform(low=-1.0, high=1.0)
+        ball_vxyz = np.array([ball_vx, ball_vy, ball_vz])
+        # Set ball free joint velocity (aka ball velocity) with angular terms = 0
+        ball_angular_speed = np.zeros(3, dtype=np.float64)
+
+        # Concatenate together in the order joint appear in the XML
+        my_qpos = np.hstack((cup_x, ball_xyz, ball_quat))
+        my_qvel = np.hstack((cup_vx, ball_vxyz, ball_angular_speed))
+
+        self.set_state(qpos=my_qpos, qvel=my_qvel)
+
+        # Return the observation at which handing over env for stepping
         return self._get_obs()

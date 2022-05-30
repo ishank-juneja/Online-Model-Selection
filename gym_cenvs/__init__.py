@@ -23,6 +23,11 @@ register(
     entry_point='gym_cenvs.envs:Kendama',
 )
 
+register(
+    id='Catching-v0',
+    entry_point='gym_cenvs.envs:Catching',
+)
+
 # Register simple model environments used to create visual models (percpetion system)
 #  Prefix "Mujoco" used to avoid namespace collision with in built gym envs
 

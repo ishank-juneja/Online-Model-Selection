@@ -1,4 +1,13 @@
-<mujoco model="kendama">
+<!-- Kendama complex object environment which si the cup and ball game and the
+    primary test case for MM-LVSPC
+    The state space is populated with joints in the order that they are
+    defined in this file. The actuators also operate on joints.
+    State-Space [qpos, qvel] (name/joint/parameter/variable-access):
+        - TODO FIll this
+    Actuators (name/actuator/parameter):
+        - cup_sliderx      motor       force x (N) action[0]
+-->
+<mujoco model="catching">
   <compiler coordinate="local" inertiafromgeom="true"/>
   <default>
     <joint damping="0.05" stiffness="0.1"/>

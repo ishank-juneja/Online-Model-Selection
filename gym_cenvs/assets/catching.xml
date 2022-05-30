@@ -1,0 +1,45 @@
+<!-- Catch me complex object that combines elements of Kendama and Freely falling ball
+    environments
+    The state space is populated with joints in the order that they are
+    defined in this file. The actuators also operate on joints.
+    State-Space [qpos, qvel] (name/joint/parameter/variable-access):
+        - cup      slider      position (m) qpos[0]
+        - ball     free (3D position (x3) + Angular position (x4 quat)) position (m, rad) qpos[1:8]
+        - cup      slider      velocity (m/s) qvel[0]
+        - ball     free (3D Linear Velocity + Angular Velocity )      velocity (m/s) qvel[1:7]
+    Actuators (name/actuator/parameter):
+        - cup_sliderx      motor       force x (N) action[0]
+-->
+<mujoco model="catching">
+  <compiler coordinate="local" inertiafromgeom="true"/>
+  <default>
+    <joint damping="0.05" stiffness="0.1"/>
+    <geom contype="1" conaffinity="1" friction="1 0.1 0.1" rgba="0.7 0.7 0 1"/>
+  </default>
+  <option gravity="1e-5 0 -9.81" integrator="RK4" timestep="0.001"/>
+  <size nstack="3000"/>
+  <worldbody>
+    <camera name="rgb" mode="fixed" pos="0 -4 0.0" euler="90 0 0"/>
+      <!-- pos here acts like the origin of the cup -->
+    <body name="cup" pos="0 0 0">
+<!--      Shape of cup inspired by https://github.com/deepmind/dm_control/blob/master/dm_control/suite/ball_in_cup.xml-->
+        <joint name="cup_sliderx" axis="1 0 0" limited="true" margin="0.01" pos="0 0 0" range="-20 20" stiffness="0" type="slide"/>
+        <site name="cup_site" pos="0 0 0." size="0.01 0.01"/>
+        <geom name="cup_collision_site" type="sphere" pos="0 0 0.08" size="0.01 0.01" rgba="1 1 1 0" mass="0.01" contype="2" conaffinity="2"/>
+        <geom name="cup_base" type="capsule" pos="0 0 0" quat="0.707 0 0.707 0" size="0.05 0.1625" rgba="1 0 0 1" mass=".5" contype="2" conaffinity="2"/>
+        <geom name="cup_left1" type="capsule" fromto="0.1625 0 0 0.225 0 0.075" size="0.05" rgba="1 0 0 1" mass=".25" contype="2" conaffinity="2"/>
+        <geom name="cup_right1" type="capsule" fromto="-0.1625 0 0 -0.225 0 0.075" size="0.05" rgba="1 0 0 1" mass=".25" contype="2" conaffinity="2"/>
+        <geom name="cup_left2" type="capsule" fromto="0.225 0 0.075 0.225 0 0.25" size="0.05" rgba="1 0 0 1" mass=".25" contype="2" conaffinity="2"/>
+        <geom name="cup_right2" type="capsule" fromto="-0.225 0 0.075 -0.225 0 0.25" size="0.05" rgba="1 0 0 1" mass=".25" contype="2" conaffinity="2"/>
+    </body>
+    <body name="ball" pos="0 0 0">
+      <!--      free joints don't have a position and their params (pos, vel) are the params of the associated geom -->
+        <joint name="dummy" type="free"/>
+        <geom name="gball" type="sphere" size="0.175 0.175" mass="1.0" rgba="1 1 1 1" contype="3" conaffinity="3"/>
+        <site name="ball_site" pos="0 0 0." size="0.01 0.01"/>
+    </body>
+  </worldbody>
+  <actuator>
+    <motor joint="cup_sliderx" name="cup_actuatorx" ctrllimited="true" ctrlrange="-1 1" gear="40"/>
+  </actuator>
+</mujoco>

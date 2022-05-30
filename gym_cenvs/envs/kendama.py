@@ -47,6 +47,8 @@ class Kendama(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
         # Receive collision type if any
         collision_type = self.collision_check()
 
+        print("Collision Type is {0}".format(collision_type))
+
         # type=1 is success
         self.done = self.done or (collision_type == 1)
         # Going outside of view
@@ -83,6 +85,9 @@ class Kendama(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
             if "cup_collision_site" in collision_pair:
                 if "gball" in collision_pair:
                     success = 1
+
+        print(collision_pairs)
+
         if success:
             return 1
         else:
@@ -136,5 +141,5 @@ class Kendama(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
             self.init_qvel + rand_mask * self.np_random.randn(self.model.nv) * .1
         )
 
-        # Retirn the ibservation at which handing over env for stepping
+        # Return the observation at which handing over env for stepping
         return self._get_obs()

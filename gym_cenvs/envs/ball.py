@@ -88,5 +88,3 @@ class Ball(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
         ball_free_jnt_vel = np.hstack((ball_vxyz, np.zeros(3, dtype=np.float64)))
         self.set_state(ball_free_jnt_state, ball_free_jnt_vel)
         return self._get_obs()
-
-

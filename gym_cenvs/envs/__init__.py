@@ -1,5 +1,6 @@
 # Complex LVSPC tasks
 from gym_cenvs.envs.conkers import Conkers
+from gym_cenvs.envs.catching import Catching
 from gym_cenvs.envs.kendama import Kendama
 
 # Simple Models

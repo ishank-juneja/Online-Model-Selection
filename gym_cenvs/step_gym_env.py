@@ -43,7 +43,7 @@ def main(args):
                     img = plt.imshow(cur_obs[:, :, :3])
                 else:
                     img.set_data(cur_obs[:, :, :3])
-                plt.pause(0.01)
+                plt.pause(0.1)
                 plt.draw()
 
             # info is a dict from a mujoco model, NA for gym in built envs
