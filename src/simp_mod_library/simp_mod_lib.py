@@ -1,9 +1,14 @@
-from src.simp_mod_library.simp_mod_datastruct import SimpModStruct
+from src.simp_mod_library.simp_mod_book import SimpModBook
 from src.transition_distributions import HeuristicUnscentedKalman, GPUnscentedKalman
-from typing import List, Type, Union
+from typing import List, Union
 
 
 class SimpModLib:
+    """
+    Class to encapsulate everything needed for the interaction between the agent and the library of simple model
+    dynamics priors. A tool used by BaseAgent
+    Can be thought of as a sophisticated wrapper around a list of SImpModBooks
+    """
     def __init__(self, model_names: List[str], online_gp: bool, goal):
         """
         :param model_names: List of names of simple models in library
@@ -30,7 +35,7 @@ class SimpModLib:
 
         # Load in perceptions
         for mod_name in model_names:
-            smodel_struct = SimpModStruct(simp_mod=mod_name, transition_dist=transition_dist, goal=goal)
+            smodel_struct = SimpModBook(simp_mod=mod_name, transition_dist=transition_dist, goal=goal)
             self.lib[mod_name] = smodel_struct
 
         # List of available simple models, idx <-> str mapping is based on this list
@@ -74,4 +79,3 @@ class SimpModLib:
             # If learning a GP online
             if self.online_gp:
                 model_struct.trans_dist.reset_model()
-

@@ -4,7 +4,7 @@ from datetime import datetime
 import logging
 import numpy as np
 import os
-from src.agents import ConkersAgent
+from src.agents import CatchingAgent, ConkersAgent, KendamaAgent
 from src.utils import ResultDirManager, setup_logging
 import torch
 
@@ -12,11 +12,12 @@ import torch
 def main(args):
     task_name = args.task
 
+    # - - - - - - - - - - - - - - - -
     # Setup logging to console and file handler
     current_time = datetime.now().strftime('%b%d_%H-%M-%S')
     dir_manager = ResultDirManager()
 
-    # Folder for all things this run
+    # Folder for all things generated in this run
     run_folder_name = "online_run_{0}_{1}".format(task_name, current_time)
     run_folder_path = "runs/online/{0}".format(run_folder_name)
     dir_manager.add_location('run_log', run_folder_path)
@@ -29,13 +30,21 @@ def main(args):
                          log_line_template="%(color_on)s[%(created)d] [%(threadName)s] [%(levelname)-8s] %(message)s%(color_off)s"):
         print("Failed to setup logging, aborting.")
         exit()
+    # - - - - - - - - - - - - - - - -
 
     # set seed
     seed(randseed=args.seed)
 
     # Make an agent to solve task
-    if task_name == 'conkers':
-        agent = ConkersAgent(smodel_list=args.models)
+    # TODO: Remove hard-coding of device
+    #  Instead have the same torch device for an entire program the way Johnson does it ...
+    mydevice = 'cuda:0'
+    if task_name == 'catching':
+        agent = CatchingAgent(smodel_list=args.models, device=mydevice)
+    elif task_name == 'conkers':
+        agent = ConkersAgent(smodel_list=args.models, device=mydevice)
+    elif task_name == 'kendama':
+        agent = KendamaAgent(smodel_list=args.models, device=mydevice)
     else:
         raise NotImplementedError
     logging.info("Created agent for task {0}".format(task_name))
@@ -166,7 +175,7 @@ if __name__ == '__main__':
     parser.add_argument("--task",
                         action='store',
                         type=str,
-                        choices=["conkers"],
+                        choices=["conkers, catching, kendama"],
                         help="Short name of task being performed by MM-LVSPC",
                         metavar="task",
                         dest="task")

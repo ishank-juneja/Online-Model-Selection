@@ -3,9 +3,8 @@ import gym_cenvs
 from abc import ABCMeta
 import logging
 import numpy as np
-from src.agents import MPPI
 from src.simp_mod_library.simp_mod_lib import SimpModLib
-from src.transition_distributions import MMT
+from src.transition_distributions import JTM
 import torch
 from typing import List
 
@@ -14,49 +13,38 @@ class BaseAgent(metaclass=ABCMeta):
     """
     Base class for constructing agents that control the complex object using passed Simple Model Library
     """
-    def __init__(self, smodel_list: List[str], env_name: str):
-        self.env_name = env_name
+    def __init__(self, smodel_list: List[str], device: str = 'cuda:0'):
+        # String that is set in derived class
+        self.env_name: str = None
+        # Ref to step-able mujoco-gym environment
+        self.env = None
+
+        # Devices
+        self.device = device
+
+        self.model_lib = SimpModLib(smodel_list, online_gp, goal)
+
+        self.mmt = JTM(self.model_lib, self.device)
+
+        self.state_dim = self.model_lib['cartpole'].cfg.state_dimension
+        self.device = self.model_lib['cartpole'].cfg.device
+
+    def make_agent_for_task(self):
+        """
+        Invoked after task specific params have been set in derived class
+        :return:
+        """
         self.env = gym.make(self.env_name)
         self.env.seed(0)
         self.env.action_space.seed(0)
 
-        self.device = 'cuda:0'
-
-        # Set cost functions of lib based on task
-        goal = self.env.get_goal()
-
         # Actions per loop iteration / nrepeats for action
         self.actions_per_loop = 1
-
+        # TODO: Infer action dimension from the environment
+        #  Check consistency of this dimension with the controls dimension of simple model lib
         self.action_dimension = 1
 
-        # Planning/Control horizon for Conkers task
-        self.episode_T = 100
-
-        # Whether to online learn GP as transition model
-        online_gp = True
-
-        self.model_lib = SimpModLib(smodel_list, online_gp, goal)
-
-        self.mmt = MMT(self.model_lib, self.device)
-
-        # Controller related config for task
-        self.controller = MPPI(dynamics=self.mmt,
-                               trajectory_cost=self.model_lib['cartpole'].cost_fn.compute_cost,
-                               nx=self.model_lib['cartpole'].state_dim() * 2,
-                               noise_sigma=self.model_lib['cartpole'].mppi_noise_sigma(),
-                               num_samples=1000,
-                               horizon=20,
-                               lambda_=self.model_lib['cartpole'].mppi_lambda(),
-                               device=self.model_lib['cartpole'].cfg.device,
-                               u_scale=self.model_lib['cartpole'].cfg.u_scale,
-                               u_max=1.0,
-                               u_min=-1.0,
-                               u_per_command=self.actions_per_loop,
-                               noise_abs_cost=True)
-
-        self.state_dim = self.model_lib['cartpole'].cfg.state_dimension
-        self.device = self.model_lib['cartpole'].cfg.device
+        return
 
     def get_cost_fn(self, simp_model: str):
         """
@@ -64,7 +52,7 @@ class BaseAgent(metaclass=ABCMeta):
         :param simp_model:
         :return:
         """
-
+        return
 
     @classmethod
     def __new__(cls, *args, **kwargs):
@@ -108,7 +96,7 @@ class BaseAgent(metaclass=ABCMeta):
     def render(self):
         raise NotImplementedError
 
-    def vizualise(self):
+    def visualize(self):
         raise NotImplementedError
 
     def observation_update(self, observation, true_state=None):
@@ -205,67 +193,8 @@ class BaseAgent(metaclass=ABCMeta):
 
         return done, False, total_reward, info
 
-    @staticmethod
-    def chunk_trajectory(z_mu, z_std, u, H=5):
-        """
-        Takes z_mu, z_std, u as tensors of shapes T x nz, T x nz, T x nu resp.
-        Divides these trajectories into chunks of size N x H x nz/nu
-        Even splits the trajectories (discards extra trailing data)
-        :param z_mu: Mean over-states returned by perception
-        :param z_std: Std-dev over state validity returned by perception
-        :param u: actions
-        :param H: chunk size
-        :return:
-        """
-        # TODO: This may be redundant if both are guaranteed same T
-        T = min(z_mu.size(0), u.size(0))
-        N = T // H
-
-        # Truncate and view as desired shape
-        z_mu_chunks = z_mu[:N * H].view(N, H, -1)
-        z_std_chunks = z_std[:N * H].view(N, H, -1)
-        u_chunks = u[:N * H].view(N, H, -1)
-
-        return z_mu_chunks, z_std_chunks, u_chunks
-
-    def store_episode_data(self):
-        """
-        Agent appends current dataset with observed data from the perception on the entire episode
-        D <- D U (mu^y_t, Sigma^y_t, u_t)_{t=1}^{T} where T < self.episode_T = duration of trajectory
-        :return:
-        """
-        u = torch.from_numpy(np.asarray(self.action_history))    # size: T
-        z_mu = torch.from_numpy(np.asarray(self.z_mu_history)).squeeze(1)   # size: T x obs_dim
-        z_std = torch.from_numpy(np.asarray(self.z_std_history)).squeeze(1) # size: T x obs_dim
-
-        z_mu, z_std, u = self.chunk_trajectory(z_mu, z_std, u)
-
-        # First iteration while building online dataset
-        if self.model_lib['cartpole'].trans_dist.saved_data is None:
-            # Initialize dataset as empty dict
-            self.model_lib['cartpole'].trans_dist.saved_data = dict()
-            self.model_lib['cartpole'].trans_dist.saved_data['z_mu'] = z_mu
-            self.model_lib['cartpole'].trans_dist.saved_data['z_std'] = z_std
-            self.model_lib['cartpole'].trans_dist.saved_data['u'] = u
-        else:
-            self.model_lib['cartpole'].trans_dist.saved_data['z_mu'] = torch.cat((z_mu, self.model_lib['cartpole'].trans_dist.saved_data['z_mu']), dim=0)
-            self.model_lib['cartpole'].trans_dist.saved_data['z_std'] = torch.cat((z_std, self.model_lib['cartpole'].trans_dist.saved_data['z_std']), dim=0)
-            self.model_lib['cartpole'].trans_dist.saved_data['u'] = torch.cat((u, self.model_lib['cartpole'].trans_dist.saved_data['u']), dim=0)
-
-        print(self.model_lib['cartpole'].trans_dist.saved_data['z_mu'].shape)
-
-    def train_on_episode(self):
-        #u = torch.from_numpy(np.asarray(self.action_history)).to(device=self.config.device).squeeze(1)
-        #z_mu = torch.from_numpy(np.asarray(self.z_mu_history)).to(device=self.config.device).squeeze(1)
-        #z_std = torch.from_numpy(np.asarray(self.z_std_history)).to(device=self.config.device).squeeze(1)
-        self.model_lib['cartpole'].trans_dist.train_on_episode()
-        self.model_lib['cartpole'].cost_fn.set_max_std(self.model_lib['cartpole'].trans_dist.max_std)
-        self.model_lib['cartpole'].cost_fn.iter = min(self.model_lib['cartpole'].cost_fn.iter + 1, 10)
-        #z #zelf.CostFn.iter = 20
-        #self.CostFn.iter = 10
-        print(self.model_lib['cartpole'].cost_fn.iter)
-
-    def save_episode_data(self, fname):
+    # TODO: Modify load and save to handle data from all models as opposed to a single model
+    def save_episode_to_disk(self, fname):
         # TODO sort this out with proper file directories and stuff
         actions = np.asarray(self.action_history)
         z_mu = np.asarray(self.z_mu_history)

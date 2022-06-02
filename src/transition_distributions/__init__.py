@@ -1,3 +1,3 @@
 from src.transition_distributions.huk import HeuristicUnscentedKalman
 from src.transition_distributions.gpuk import GPUnscentedKalman
-from src.transition_distributions.jtm import MMT
+from src.transition_distributions.jtm import JTM
