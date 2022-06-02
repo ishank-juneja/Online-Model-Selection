@@ -12,6 +12,54 @@ def _ensure_non_zero(cost, beta, factor):
     return torch.exp(-factor * (cost - beta))
 
 
+class MMplanner:
+    """
+    The Multiple Nominal Dynamics Priors Equivalent of the usual MPPI algorithm
+
+    Designed to be aware of uncertainty while planning
+    """
+    def __init__(self,
+                 joint_trans_model,
+                 trajectory_cost,
+                 nx,
+                 noise_sigma,
+                 num_samples=100,
+                 horizon=15,
+                 device="cpu",
+                 lambda_=1.,
+                 noise_mu=None,
+                 u_min=None,
+                 u_max=None,
+                 u_init=None,
+                 U_init=None,
+                 u_scale=1,
+                 u_per_command=1,
+                 step_dependent_dynamics=False,
+                 sample_null_action=False,
+                 noise_abs_cost=False):
+        """
+        :param joint_trans_model: function(state, action, model_idx m) -> next_state (K x nx) taking in batch state (K x nx) and action (K x nu)
+        Where model_idx is the model used to transition from the current state to the next state
+        :param trajectory_cost:
+        :param nx:
+        :param noise_sigma:
+        :param num_samples:
+        :param horizon:
+        :param device:
+        :param lambda_:
+        :param noise_mu:
+        :param u_min:
+        :param u_max:
+        :param u_init:
+        :param U_init:
+        :param u_scale:
+        :param u_per_command:
+        :param step_dependent_dynamics:
+        :param sample_null_action:
+        :param noise_abs_cost:
+        """
+
+
 class MPPI():
     """
     Model Predictive Path Integral control

@@ -58,6 +58,14 @@ class BaseAgent(metaclass=ABCMeta):
         self.state_dim = self.model_lib['cartpole'].cfg.state_dimension
         self.device = self.model_lib['cartpole'].cfg.device
 
+    def get_cost_fn(self, simp_model: str):
+        """
+        Returns the cost function corresponding to the passed simple model for the task at hand
+        :param simp_model:
+        :return:
+        """
+
+
     @classmethod
     def __new__(cls, *args, **kwargs):
         """
@@ -286,3 +294,4 @@ class BaseAgent(metaclass=ABCMeta):
 
     def save_rollout(self, rollout):
         self.rollout_history.append(rollout[0].cpu().numpy())
+

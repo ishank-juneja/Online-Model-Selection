@@ -1,13 +1,18 @@
-# from src.simp_mod_library import SimpModLib
+"""
+Module contains cost functions for planning with a simple model dynamics prior
+The cost functions assume that the goal region (in some abstract sense) is known as a simple model state
+"""
 import torch
 from torch import nn
 
 
+# TODO: A single MMCost entity may not be needed if changing the way planning is performed
+#  But for initial experimentation, the standard MPPI code is being used so this is needed
 # Options for implementing: Apply cost to every [:, idx, nx] slice of states
 #  starting from the end of trajectories
 # OR
 # Compute the [:, idx, nx] slices for all costs and linear combine them at the end using
-#  pointwise products with masks
+#  point-wise products with masks
 class MMCost(nn.Module):
     """
     MMCost = Combined cost function for multiple models that looks up the appropriate
@@ -22,16 +27,28 @@ class MMCost(nn.Module):
 
     def forward(self, states, actions):
         """
-
+        The callable that returns the cost on states and actions for the planner to do planning
         :param states:
         :param actions:
         :return:
         """
 
 
+class BallCost(nn.Module):
+    """
+    Ball cost is distance between Ball center and a goal location (example a moving cup)
+    """
+    def __init__(self):
+        super(BallCost, self).__init__()
+
+    # TODO: Add something that checks for collisions based on distance between Ball and Cup
+    def forward(self):
+
+
 class CartpoleTipCost(nn.Module):
     """
     Cost is euclidean distance of cartpole end effector from some goal position in R^2
+    TODO: Goal position in this class definition is fixed, change to
     """
     def __init__(self, goal, l=1.):
         super(CartpoleTipCost, self).__init__()
@@ -48,7 +65,11 @@ class CartpoleTipCost(nn.Module):
         self.max_std = max_std
 
     def check_rope_collision(self, state):
-        " checks if rope collides with object"
+        """
+        Allows for imposing cost on undesirable collisions
+        :param state:
+        :return:
+        """
         N, T, _ = state.shape
 
         zeros = torch.zeros(N, T, device=state.device)

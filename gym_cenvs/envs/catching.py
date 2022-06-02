@@ -8,6 +8,8 @@ import os
 class Catching(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
     def __init__(self):
         self.done = False
+        # Var to indicate that the env has been initialized
+        self.inited = False
         xml_path = os.path.abspath('gym_cenvs/assets/catching.xml')
         MujocoBase.__init__(self)
         mujoco_env.MujocoEnv.__init__(self, xml_path, 50)
@@ -20,6 +22,7 @@ class Catching(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
         # Must come after model init
         self.reset_model()
 
+    # NOTE: step() is invoked implicitly when the mujoco-py environment is constructed
     def step(self, action):
         # Clip action to respect force actuator control range
         action = np.clip(action, -1.0, 1.0)
@@ -39,27 +42,28 @@ class Catching(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
         # Receive collision type if any
         collision_type = self.collision_check()
 
-        print("Collision Type is {0}".format(collision_type))
-
-        # Override to get rid of error
-        collision_type = 0
-
         # type=1 is success
+        #  Don't update self.done ... leads to a bug
         self.done = self.done or (collision_type == 1)
         # Going outside of view
         out_of_view = (np.abs(self.sim.data.qpos[0]) > 1.7)
         # Need to reset the model if there was a type-2 failure collision or went out of view
-        done = out_of_view or self.done
+        done = (out_of_view or self.done or (collision_type == 1)) and self.inited
         # Considered failure if either of these happen
         fail_cost = 100.0 if out_of_view else 0.0
 
-        if collision_type == 1:
+        # Also check init because there is a collision initially
+        if collision_type == 1 and self.inited:
             print('Task Successful')
         if out_of_view:
             print('Failed, went offscreen')
 
+        # After the initial env initialization has occurred ... set inited to make above expression
+        #  the expected done = out_of_view or self.done or (collision_type == 1)
+        self.inited = True
+
         # Note: Reward here was changed for the RL envs
-        return ob, 0.0, done, {'state': state, 'success': self.done}
+        return ob, -(goal_cost + centre_cost + fail_cost), done, {'state': state, 'success': self.done}
 
     def collision_check(self):
         """
@@ -80,8 +84,6 @@ class Catching(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
             if "cup_collision_site" in collision_pair:
                 if "gball" in collision_pair:
                     success = True
-
-        print(collision_pairs)
 
         if success:
             return 1

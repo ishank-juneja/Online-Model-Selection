@@ -1,22 +1,18 @@
-from src.simp_mod_library import SimpModLib
 import torch
 from torch import nn
 
 
-class MMT(nn.Module):
+class JTM(nn.Module):
     """
-    MMT = Multiple Model Transition Distribution
-    Takes in the transition distributions contained within simple model lib for every simple model
-    and constructs a Hybrid object out of them that selects the model to be used for the next sample transition of
-    every trajectory based on an uncertainty criteria
+    JTM = Joint Transition Distribution as describe in slides on May 6
     """
-    def __init__(self, simp_mod_lib: SimpModLib, device: str = 'cuda:0'):
+    def __init__(self, simp_mod_lib, device: str = 'cuda:0'):
         """
-        Initializes a hybrid transition model by combining the transition models of simple
-        model priors contained in passed simp model library
+        Initializes a hybrid transition model by combining the transition models of simple model
+        priors contained in passed simp model library
         :param simp_mod_lib:
         """
-        super(MMT, self).__init__()
+        super(JTM, self).__init__()
 
         # TODO: Infer this from some common config later ...
         # Number of trajectories simulated by the planner at one go
@@ -48,8 +44,9 @@ class MMT(nn.Module):
                 self.nx = nx_cur
             self.dyn_funcs.append(model_trans)
 
-        # Extra dimension for holding model index used to make transition
-        self.nx += 1
+        # The state of the joint transition model is the concat of the state and uncertainty over state
+        #  So double the size of nx used
+        self.nx *= 2
 
         # Variable to hold the dynamics mode used to get to the current state
         # Shape: self.K x 1 for concatenation with simple model state
@@ -105,17 +102,15 @@ class MMT(nn.Module):
         padded_nstate[:, -1] = self.mode.detach().clone()
         return padded_nstate
 
-    def forward(self, state_uncertainty, action):
+    def forward(self, state_and_var, action, model_idx):
         """
-        Plays the role of the agent.trans_dist.sample_dynamics in original LVSPC code
-        Propagate state and action via the hybrid nominal dynamics prior
-        :param state_uncertainty: K x (2*self.nx) dimensional state vector from planner,
-        2*nx because state + uncertainty over every state,
-        Semantics: [simple_model_state | mode idx | uncertainty | model-switch (hand-over) uncertainty]
-        :param action: K x self.nu from the planner, actions on the actuation location common/shared across the priors
-        :return: K x (2*self.nx + 1) tensor with same semantics as state
+        Callable for the joint transition model over the library of simple model dynamics priors
+        :param state_and_var: K x self.nx array for state and variance over state
+        :param action: K x self.nu array for action proposals in the K trajectories simulated
+        :param model_idx:
+        :return:
         """
-        state = state_uncertainty[:self.nx]
+        state = state_and_var[:self.nx]
         # Init next state with current state since different dynamics func modes are applied iteratively
         self.next_state[:] = state
 

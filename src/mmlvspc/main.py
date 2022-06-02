@@ -140,7 +140,7 @@ def main(args):
         train_success_npy = np.asarray(train_success)
         test_success_npy = np.asarray(test_success)
         test_times_npy = np.asarray(test_times)
-        #print(np.mean(test_success, axis=0))
+        # print(np.mean(test_success, axis=0))
         # results = dict()
         # from scipy.io import savemat
         # results['train_s'] = train_success_npy
@@ -192,7 +192,7 @@ if __name__ == '__main__':
                         nargs='+',
                         choices=['cartpole', 'ball', 'dcartpole', 'dubins'],
                         type=str,
-                        help="Models to be included in simple model library",
+                        help="Models available in simple model library",
                         dest="models",
                         metavar="models-in-lib")
 
