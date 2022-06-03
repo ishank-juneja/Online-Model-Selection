@@ -24,7 +24,7 @@ class SimpModPerception(nn.Module):
         self.encoder = EncoderEnsemble(encoder_model_name, load_model=True)
         self.encoder.send_model_to_gpu()
         # This wrapper class is only invoked at test time, never at train ...
-        # TODO: Uncomment below whjen doing control
+        # TODO: Uncomment below when doing control
         # self.encoder.eval_mode()
 
         # Check encoder and segmenter for compatibility and retrieve the down-sample ratio
@@ -140,7 +140,8 @@ class SimpModPerception(nn.Module):
     def cfg(self):
         """
         Returns the config of the encoder part of the perception
-        Encoder config doubles as config for simple-model itself
+        Encoder config doubles as config for simple-model itself since during
+         online execution
         :return:
         """
         return self.encoder.config

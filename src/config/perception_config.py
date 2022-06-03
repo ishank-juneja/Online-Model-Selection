@@ -1,6 +1,6 @@
 
 
-class SimpModLibConfig:
+class PerceptionConfig:
     """
     Herein specified are names of the models that are to be used for perception/simple model library
     """

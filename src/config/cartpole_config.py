@@ -1,5 +1,5 @@
 from src.config import CommonEncConfig
-from src.simp_mod_library.costs import CartpoleTipCost
+from src.cost_functions.costs import CartpoleTipCost
 from src.simp_mod_library.kinodynamic_funcs import CartpoleDynamics
 import torch
 

@@ -57,7 +57,7 @@ def main(args):
 
     while trial < args.ntrials:
         # Reset the learnable params in model library
-        agent.model_lib.reset()
+        agent.model_lib.hard_reset()
 
         ep = 0
         episode_train_times = []
@@ -166,7 +166,7 @@ def main(args):
         print(np.std(np.mean(test_success_npy, axis=0), axis=1))
         print(test_times_npy)
 
-        agent.controller.reset()
+        agent.controller.hard_reset()
 
 
 if __name__ == '__main__':

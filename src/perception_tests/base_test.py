@@ -77,7 +77,7 @@ class BaseVizTest(metaclass=ABCMeta):
             pass
 
         # Reset environment before starting simulation
-        self.env.reset()
+        self.env.hard_reset()
 
         nactions = min(self.max_env_traj, actions.shape[0])
 

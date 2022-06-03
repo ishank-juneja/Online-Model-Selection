@@ -22,7 +22,7 @@ class BaseAgent(metaclass=ABCMeta):
         # Devices
         self.device = device
 
-        self.model_lib = SimpModLib(smodel_list, online_gp, goal)
+        self.model_lib = SimpModLib(smodel_list)
 
         self.mmt = JTM(self.model_lib, self.device)
 
@@ -64,34 +64,6 @@ class BaseAgent(metaclass=ABCMeta):
         if cls is BaseAgent:
             raise TypeError(f"only children of '{cls.__name__}' may be instantiated")
         return object.__new__(cls)
-
-    def reset_trial(self):
-        #TODO make this a dictionary?
-        self.true_state_history = []
-        self.state_mu_history = []
-        self.state_cov_history = []
-        self.param_cov_history = []
-        self.param_mu_history = []
-        self.action_history = []
-        self.z_mu_history = []
-        self.z_std_history = []
-        self.img_history = []
-        self.rollout_history = []
-        self.viewer_history = []
-
-        # Initialise prior for state
-        self.x_mu = torch.zeros(1, self.state_dim, device=self.device)
-        self.x_sigma = self.model_lib['cartpole'].cfg.prior_cov * torch.eye(self.state_dim,
-                                                                            device=self.device).unsqueeze(0)
-
-        self.x_sigma[self.state_dim:, self.state_dim:] *= 0.3
-
-        # First step -- we get an initial observation
-        observation = self.env.reset()
-        self.model_lib['cartpole'].cost_fn.set_goal(goal=self.env.get_goal())
-        observation, _, _, info = self.env.step(np.zeros(self.model_lib['cartpole'].cfg.action_dimension))
-        self.true_state_history.append(info['state'])
-        self.observation_update(observation)
 
     def render(self):
         raise NotImplementedError
@@ -211,7 +183,7 @@ class BaseAgent(metaclass=ABCMeta):
                  view_history, true_history, state_mu_history, state_cov_history)
 
     def load_data(self):
-        #TODO add name to argument
+        # TODO add name to argument
         for i in range(20):
             foldername = '../data/trajectories/victor_rope_flossing_no_dr/online/'
             filename = 'with_gp_thick_rope_trial_0_ep_{}.npz'.format(i+1)
@@ -224,3 +196,8 @@ class BaseAgent(metaclass=ABCMeta):
     def save_rollout(self, rollout):
         self.rollout_history.append(rollout[0].cpu().numpy())
 
+    def reset_episode(self):
+        # Clear action history for next episode
+        self.action_history = []
+        # Reset the episode-specific state of the simple model library
+        self.model_lib.reset_episode()

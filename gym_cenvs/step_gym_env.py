@@ -20,7 +20,7 @@ def main(args):
     env = gym.make(args.env)
     env.seed(env_seed)
     env.action_space.seed(env_seed)
-    env.reset()
+    env.hard_reset()
 
     img = None
     trajs = 0
@@ -30,7 +30,7 @@ def main(args):
     prev_cart = None
     # Collect observations from an instance of an environment until it goes done/out of view
     while trajs < args.trajs:
-        _ = env.reset()
+        _ = env.hard_reset()
         while True:
             # Sample a random action, ignore action space all simple models are 1D
             action = np.random.uniform(-1.0, 1.0)

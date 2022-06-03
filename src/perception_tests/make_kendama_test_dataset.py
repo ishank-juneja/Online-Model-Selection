@@ -27,7 +27,7 @@ def main(args):
         env = gym.make('Kendama-v0')
         env.seed(env_seed)
         env.action_space.seed(env_seed)
-        env.reset()
+        env.hard_reset()
 
         # Create dir manager object for saving results
         mydirmanager = ResultDirManager()
@@ -59,7 +59,7 @@ def main(args):
                 # Reset prev obs
                 prev_obs = None
 
-                state = env.reset()
+                state = env.hard_reset()
 
             # Sample a random action
             action = env.action_space.sample()

@@ -24,7 +24,7 @@ class ClickableMujocoEnv:
         if self.long_name is not None:
             # Make environment
             self.env = gym.make(self.long_name)
-            _ = self.env.reset()
+            _ = self.env.hard_reset()
 
             # Get camera matrix for this environment to convert world coord to pixel coord
             self.cam_mat = self.env.get_cam_mat()

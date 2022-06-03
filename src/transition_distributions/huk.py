@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 import torch
 from torch import nn
 from src.filters import UnscentedKalmanFilter
@@ -37,6 +38,32 @@ class HeuristicUnscentedKalman(nn.Module):
         # - - - - - - - - - - -
 
         self.transition = self.config.dynamics_fn(device=self.config.device, log_normal_params=self.config.log_params)
+
+        # Dictionary to hold the online collected dataset for a particular simple model
+        self.episode_history = dict()
+
+        # Keys for the online collected dataset. gt = Ground Truth, ep = episode
+        self.data_keys = ["gt_state_history",
+                          "mu_y_history",
+                          "sigma_y_history",
+                          "mu_z_history",
+                          "sigma_z_history",
+                          "param_mu_history",
+                          "param_sigma_history",
+                          "all_ep_frames",
+                          "all_ep_rollouts"]
+
+        # Container for the episode data collected for a particular simple model
+        self.episode_data = dict()
+        # Initialize all the episode-specific datasets with empty lists
+        for data_key in self.data_keys:
+            self.episode_data[data_key] = []
+
+        #  These empty lists are concatenated together into torch tensors to build the
+        #  online collected datasets
+        self.online_dataset()
+        for data_key in self.data_keys:
+            self.episode_history[data_key] = []
 
         self.saved_data = None
         self.start = 0
@@ -90,12 +117,13 @@ class HeuristicUnscentedKalman(nn.Module):
         return self.ukf.smooth(forward_states)
 
     def train_on_episode(self):
-        logging.debug("Entered train episode of HUK ... ")
         """
         Fits sys-id parameters (for cartpole) given observation history via sgd
         N should really be 1
         :return:
         """
+        logging.debug("Entered train episode of HUK ... ")
+
         if self.saved_data is not None:
             z_mu = self.saved_data['z_mu'].clone().to(device=self.config.device)
             z_std = self.saved_data['z_std'].clone().to(device=self.config.device)
@@ -198,3 +226,22 @@ class HeuristicUnscentedKalman(nn.Module):
             #mask = loss_masked.detach().cpu().numpy()
             #mask = np.where(mask > 0)[0]
             mask = []
+
+    def reset_episode(self):
+        for data_key in self.data_keys:
+            self.episode_data[data_key] = []
+
+        # TODO: Variables and referencing here needs to be corrected
+        # Initialise prior for state
+        self.x_mu = torch.zeros(1, self.state_dim, device=self.device)
+        self.x_sigma = self.model_lib['cartpole'].cfg.prior_cov * torch.eye(self.state_dim,
+                                                                            device=self.device).unsqueeze(0)
+
+        self.x_sigma[self.state_dim:, self.state_dim:] *= 0.3
+
+        # First step -- we get an initial observation
+        observation = self.env.hard_reset()
+        self.model_lib['cartpole'].cost_fn.set_goal(goal=self.env.get_goal())
+        observation, _, _, info = self.env.step(np.zeros(self.model_lib['cartpole'].cfg.action_dimension))
+        self.true_state_history.append(info['state'])
+        self.observation_update(observation)

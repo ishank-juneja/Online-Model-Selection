@@ -111,7 +111,7 @@ class SimpleModel:
             self.env.seed(self.seed)
             self.env.action_space.seed(self.seed)
         # Reset either an already open environment or a freshly created one after recompilation
-        self.env.reset()
+        self.env.hard_reset()
 
     def close(self):
         self.env.close()
