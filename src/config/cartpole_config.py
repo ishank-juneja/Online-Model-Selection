@@ -1,5 +1,4 @@
 from src.config import CommonEncConfig
-from src.cost_functions.costs import CartpoleTipCost
 from src.simp_mod_library.kinodynamic_funcs import CartpoleDynamics
 import torch
 
@@ -60,8 +59,6 @@ class Config(CommonEncConfig):
         self.linear_emission = True
 
         self.log_params = True
-
-        self.cost_fn = CartpoleTipCost
 
         # MPPI params
         self.mppi_noise_sigma = .5 * torch.eye(self.action_dimension, device=self.device)

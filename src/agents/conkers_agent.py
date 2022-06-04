@@ -9,17 +9,10 @@ class ConkersAgent(BaseAgent):
         # Set task specific parameters here
         self.env_name: str = 'Conkers-v0'
 
-        # Planning/Control horizon for task
-        self.episode_T = 100
-
-        # Learn uni-modal transition models between the states of a single model
-        #  Identical to what the zero-mean GP learns in LVSPC
-        # If below is false we blindly rely on nominal dynamics with
-        self.learn_unimodal_trans = False
-        # Learn inter-model transitions
-        self.learn_inter_model = False
-
         # Actually make the agent based on the task specific params set in this class definition
         self.make_agent_for_task()
+
+        # Actions per loop iteration / nrepeats for action
+        self.actions_per_loop = 1
 
 

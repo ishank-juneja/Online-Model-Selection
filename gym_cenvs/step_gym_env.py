@@ -20,7 +20,7 @@ def main(args):
     env = gym.make(args.env)
     env.seed(env_seed)
     env.action_space.seed(env_seed)
-    env.hard_reset()
+    prev_obs = env.reset()
 
     img = None
     trajs = 0
@@ -30,7 +30,7 @@ def main(args):
     prev_cart = None
     # Collect observations from an instance of an environment until it goes done/out of view
     while trajs < args.trajs:
-        _ = env.hard_reset()
+        _ = env.reset()
         while True:
             # Sample a random action, ignore action space all simple models are 1D
             action = np.random.uniform(-1.0, 1.0)
@@ -40,11 +40,13 @@ def main(args):
 
             if args.show:
                 if img is None:
-                    img = plt.imshow(cur_obs[:, :, :3])
+                    img = plt.imshow(prev_obs[:, :, :3])
                 else:
-                    img.set_data(cur_obs[:, :, :3])
-                plt.pause(0.1)
+                    img.set_data(prev_obs[:, :, :3])
+                plt.pause(1)
                 plt.draw()
+
+            prev_obs = cur_obs
 
             # info is a dict from a mujoco model, NA for gym in built envs
             state = info["state"]

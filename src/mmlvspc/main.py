@@ -12,7 +12,7 @@ import torch
 def main(args):
     task_name = args.task
 
-    # - - - - - - - - - - - - - - - -
+    # - - - - - - - - - - - - - - - - - - - - - - - - -
     # Setup logging to console and file handler
     current_time = datetime.now().strftime('%b%d_%H-%M-%S')
     dir_manager = ResultDirManager()
@@ -30,7 +30,7 @@ def main(args):
                          log_line_template="%(color_on)s[%(created)d] [%(threadName)s] [%(levelname)-8s] %(message)s%(color_off)s"):
         print("Failed to setup logging, aborting.")
         exit()
-    # - - - - - - - - - - - - - - - -
+    # - - - - - - - - - - - - - - - - - - - - - - - - -
 
     # set seed
     seed(randseed=args.seed)
@@ -39,6 +39,7 @@ def main(args):
     # TODO: Remove hard-coding of device
     #  Instead have the same torch device for an entire program the way Johnson does it ...
     mydevice = 'cuda:0'
+
     if task_name == 'catching':
         agent = CatchingAgent(smodel_list=args.models, device=mydevice)
     elif task_name == 'conkers':
@@ -49,124 +50,8 @@ def main(args):
         raise NotImplementedError
     logging.info("Created agent for task {0}".format(task_name))
 
-    train_success = []
-    test_success = []
-    test_times = []
-    train_times = []
-    trial = 0
-
-    while trial < args.ntrials:
-        # Reset the learnable params in model library
-        agent.model_lib.hard_reset()
-
-        ep = 0
-        episode_train_times = []
-        episode_test_times = []
-        episode_train_success = []
-        episode_test_success = []
-
-        if trial > 0:
-            train_success_rate = np.mean(np.asarray(train_success), axis=0)
-            logging.info("Trial: {0} training success rate {1}".format(trial, train_success_rate))
-
-        t_success = []
-        t_times = []
-
-        logging.info("Testing before trial {0}".format(trial))
-        for test in range(20):
-            fail, t = agent.do_episode()
-            t_success.append(0. if (fail or t == agent.episode_T - 1) else 1.)
-            t_times.append(t)
-            print(test, not fail, t)
-            # if config.save_episode_data:
-            #     agent.save_episode_data('{}_trial_{}_ep_{}_test_{}'.format(fname_pre, trial, ep, test))
-
-        print(np.mean(t_success))
-        episode_test_times.append(t_times)
-        episode_test_success.append(t_success)
-
-        # Run on a fixed number of episodes for every trial
-        while ep < args.nepisodes:
-            # Make agent attempt the task for agent.episode_T number of steps
-            fail, t = agent.do_episode(action_noise=True)
-
-            # If online learning a GP, keep assembling online learned dataset
-            if args.do_online_learning:
-                agent.store_episode_data()
-
-            if t < 5:
-                continue
-
-            #if config.use_online_GP:
-            ##    agent.model.reset_model()
-
-            ep += 1
-
-            # if config.save_episode_data:
-            #     agent.save_episode_data('{}_trial_{}_ep_{}'.format(fname_pre, trial, ep))
-
-            episode_train_success.append(0. if (fail or t == agent.episode_T - 1) else 1.)
-            print(episode_train_success[-1])
-
-            print(ep)
-
-            # Retrain online learned transition distribution
-            train_interval = 1
-            if (ep <= args.nepisodes) and (ep % train_interval == 0):
-                if args.do_online_learning:
-                    try:
-                        agent.train_on_episode()
-                    except Exception as e:
-                        print(e)
-                        print('failed training... retrying episode')
-                        episode_train_success = episode_train_success[:-1]
-                        ep -= 1
-                        continue
-
-                t_success = []
-                for test in range(20):
-                    fail, t = agent.do_episode()
-                    t_success.append(0. if (fail or t == agent.episode_T-1) else 1.)
-                    t_times.append(t)
-                    if args.do_online_learning:
-                        print(test, not fail, t)
-                    # if config.save_episode_data:
-                    #     agent.save_episode_data('{}_trial_{}_ep_{}_test_{}'.format(fname_pre, trial, ep, test))
-
-                print(np.mean(t_success))
-                episode_test_success.append(t_success)
-                episode_test_times.append(t_times)
-
-                torch.cuda.empty_cache()
-
-        test_success.append(episode_test_success)
-        train_success.append(episode_train_success)
-        test_times.append(episode_test_times)
-        trial += 1
-        agent.model_lib['cartpole'].saved_data = None
-        agent.model_lib['cartpole'].trained = False
-
-        train_success_npy = np.asarray(train_success)
-        test_success_npy = np.asarray(test_success)
-        test_times_npy = np.asarray(test_times)
-        # print(np.mean(test_success, axis=0))
-        # results = dict()
-        # from scipy.io import savemat
-        # results['train_s'] = train_success_npy
-        # results['test_s'] = test_success_npy
-        # results['test_t'] = test_times_npy
-        # savemat('{}_trial_{}.mat'.format(config.episode_fname, trial), results)
-
-        # agent.model_lib['cartpole'].trans_dist.save_model('model_w_GP')
-        print('Mean training sucess rate over trials')
-        print(np.mean(train_success_npy, axis=0))
-        print('Mean testing success rate over trials')
-        print(np.mean(np.mean(test_success_npy, axis=0), axis=1))
-        print('Testing std rate over trials')
-        print(np.std(np.mean(test_success_npy, axis=0), axis=1))
-        print(test_times_npy)
-
-        agent.controller.hard_reset()
+    # Reset all online estimated parameters associated with agent
+    agent.reset_trial()
 
 
 if __name__ == '__main__':
@@ -175,7 +60,7 @@ if __name__ == '__main__':
     parser.add_argument("--task",
                         action='store',
                         type=str,
-                        choices=["conkers, catching, kendama"],
+                        choices=["conkers", "catching", "kendama"],
                         help="Short name of task being performed by MM-LVSPC",
                         metavar="task",
                         dest="task")

@@ -1,3 +1,4 @@
+import numpy as np
 from src.simp_mod_library.simp_mod_book import SimpModBook
 from typing import List, Union
 
@@ -5,13 +6,13 @@ from typing import List, Union
 class SimpModLib:
     """
     Class to encapsulate everything needed for the interaction between the agent and the library of simple model
-    dynamics priors. A tool used by BaseAgent
+    dynamics priors. Lib is a tool used by BaseAgent.
     Can be thought of as a sophisticated wrapper around a list of SimpModBooks (SMB)
-    TODO: The Joint Transition Model (JTM) has to operate on the level of
     """
-    def __init__(self, model_names: List[str]):
+    def __init__(self, model_names: List[str], device: str):
         """
         param model_names: List of names of simple models in library
+        :param device: cpu/gpu
         """
         # Sort the model names lexicographically for deterministic indexing of books in lib.
         model_names.sort()
@@ -22,9 +23,9 @@ class SimpModLib:
         #  A lib is a dictionary ... irony ?
         self.lib = {}
 
-        # Load in perceptions
+        # Create a separate Simple Model Book object for every
         for mod_name in model_names:
-            smodel_book = SimpModBook(simp_mod=mod_name)
+            smodel_book = SimpModBook(simp_mod=mod_name, device=device)
             self.lib[mod_name] = smodel_book
 
         # List of available simple models, idx <-> str mapping is based on this list
@@ -52,15 +53,23 @@ class SimpModLib:
     def nmodels(self, nmodels: int):
         self._nmodels = nmodels
 
-    def reset_episode(self):
+    def observation_update(self, obs: np.ndarray):
+        """
+
+        :param obs:
+        :return:
+        """
+
+    def reset_episode(self, obs: np.ndarray):
         """
         For resetting local history after a single episode
         :return:
         """
         for model in self.model_names:
-            self.lib[model].reset_epsidoe()
+            # Send initial obs to simple models for initializing their approximate state estimates
+            self.lib[model].reset_episode(obs)
 
-    def hard_reset(self):
+    def reset_trial(self):
         """
         Reset the simple model library by purging everything that is learned online
         :return:
