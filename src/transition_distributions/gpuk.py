@@ -70,9 +70,9 @@ class GPUnscentedKalman(HeuristicUnscentedKalman):
         transition_fn = self.transition if self.trained else self.transition.nominal_dynamics
         return super().predict(action, state_mu, state_sigma, transition_fn)
 
-    def update(self, z, x_mu, x_sigma, R=None):
+    def update(self, mu_y, mu_z, sigma_z):
         R = torch.diag_embed(self.z_logvar.exp() + 1e-5)
-        return super().update(z, x_mu, x_sigma, R)
+        return super().update(mu_y, mu_z, sigma_z)
 
     def train_on_episode(self):
         logging.debug("Entered train on episode of GPUK ...")

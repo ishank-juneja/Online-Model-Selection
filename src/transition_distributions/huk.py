@@ -39,22 +39,13 @@ class HeuristicUnscentedKalman(nn.Module):
 
         self.transition = self.config.dynamics_fn(device=self.config.device, log_normal_params=self.config.log_params)
 
-        # Keys for the online collected dataset. gt = Ground Truth, ep = episode
-        self.data_keys = ["mu_y_history",
-                          "sigma_y_history",
-                          "mu_z_history",
-                          "sigma_z_history",
-                          "param_mu_history",
-                          "param_sigma_history",
-                          "all_ep_frames",
-                          "all_ep_rollouts"]
+    def update(self, mu_y_next, mu_z_cur, sigma_z_cur):
+        """
+        :param mu_y_next: Next received observation
+        :param mu_z_cur: Current full state estimate
+        :param sigma_z_cur: Current uncertainty on estimate (from filter)
+        :return:
+        """
+        mu_z, sigma_z = self.ukf.update_linear(mu_y_next, mu_z_cur, sigma_z_cur, self.emission)
 
-        # Container for the episode data collected for a particular simple model
-        self.episode_data = dict()
-        # Initialize all the episode-specific datasets with empty lists
-        for data_key in self.data_keys:
-            self.episode_data[data_key] = []
-
-    def reset_episode(self):
-        for data_key in self.data_keys:
-            self.episode_data[data_key] = []
+        return mu_z, sigma_z

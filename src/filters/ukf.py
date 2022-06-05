@@ -59,29 +59,33 @@ class UnscentedKalmanFilter:
 
         return mu, sigma
 
-    def update_linear(self, measurement, mu_bar, sigma_bar, measurement_fn, R=None):
-
-        if R is None:
-            R = self.R
-
-        N, _ = mu_bar.size()
+    def update_linear(self, mu_y_next, mu_z_cur, sigma_z_cur, measurement_fn):
+        """
+        :param mu_y_next: Next received observation from perception
+        :param mu_z_cur: Current full state estimate
+        :param sigma_z_cur: Current uncertainty on estimate (from filter)
+        :param measurement_fn: Measurement/observation function in KF framework
+        :return:
+        """
+        N, _ = mu_z_cur.size()
         C = measurement_fn.get_C().unsqueeze(0)
 
         # Compute Kalman Gain
-        S = C.matmul(sigma_bar).matmul(C.transpose(1, 2)) + R
+        S = C.matmul(sigma_z_cur).matmul(C.transpose(1, 2)) + self.R
         S_inv = S.inverse()
-        K = sigma_bar.matmul(C.transpose(1, 2)).matmul(S_inv)
+        K = sigma_z_cur.matmul(C.transpose(1, 2)).matmul(S_inv)
 
         # Get innovation
-        innov = measurement.unsqueeze(2) - C.matmul(mu_bar.unsqueeze(2))
+        innov = mu_y_next.unsqueeze(2) - C.matmul(mu_z_cur.unsqueeze(2))
 
         # Get new mu
-        mu = mu_bar.unsqueeze(2) + K.matmul(innov)
+        mu = mu_z_cur.unsqueeze(2) + K.matmul(innov)
 
         # Compute sigma using Joseph's form -- should be better numerically
+        #  http://www.anuncommonlab.com/articles/how-kalman-filters-work/part2.html
         IK_C = torch.eye(self.state_dim, device=self.device) - K.matmul(C)
-        KRK = K.matmul(R.matmul(K.transpose(1, 2)))
-        sigma = IK_C.matmul(sigma_bar.matmul(IK_C.transpose(1, 2))) + KRK
+        KRK = K.matmul(self.R.matmul(K.transpose(1, 2)))
+        sigma = IK_C.matmul(sigma_z_cur.matmul(IK_C.transpose(1, 2))) + KRK
 
         return mu.squeeze(dim=2), sigma
 

@@ -41,16 +41,36 @@ class SimpModBook:
         # Config for simple model book-keeping is identical to config from perception
         self.cfg = self.perception.cfg()
 
-        # Infer state and parameter dimensions from config
-        self.state_dim = self.cfg.state_dimension
-
-        # Container for current simple model related estimates on the books
-        self.mu_z = torch.zeros(1, self.state_dim, device=self.device)
+        # Containers for current simple model related estimates on the books
+        self.mu_z = torch.zeros(1, self.cfg.state_dimension, device=self.device)
+        self.x_mu = torch.zeros(1, self.cfg.param_dimension, device=self.device)
 
         self.trans_dist = HeuristicUnscentedKalman(self.cfg)
 
         # States and actions
         logging.info("Initialized struct and perception for {0} model".format(simp_mod))
+
+        # Keys for the online collected dataset. gt = Ground Truth, ep = episode
+        self.data_keys = ["mu_y_history",
+                          "sigma_y_history",
+                          "mu_z_history",
+                          "sigma_z_history",
+                          "param_mu_history",
+                          "param_sigma_history",
+                          "seg_conf_history",
+                          "masked_frames_history"
+                          ]
+
+        # Container for the episode data collected for a particular simple model
+        # Core datastruct that forms the book
+        self.episode_data = dict()
+        # Init dict entries with empty lists
+        self.clear_episode_lists()
+
+    def clear_episode_lists(self):
+        # Initialize all the episode-specific datasets with empty lists
+        for data_key in self.data_keys:
+            self.episode_data[data_key] = []
 
     def observation_update(self, obs: np.ndarray):
         """
@@ -59,16 +79,10 @@ class SimpModBook:
         :return:
         """
         # Encode single image
-        _, _, mu_y, sigma_y = self.perception(obs)
+        masked, conf, mu_y, sigma_y = self.perception(obs)
 
-        z = z_mu
-
-        # Use R from encoder
-        R = None
         # Update belief in world
-        self.x_mu, self.x_sigma = self.trans_dist.update(z, self.x_mu, self.x_sigma, R)
-        if self.config.viewer:
-            self.viewer_history.append(self.env.get_view())
+        self.x_mu, self.x_sigma = self.trans_dist.update(mu_y, self.x_mu, self.x_sigma)
 
         return z_mu, z_std
 
@@ -83,9 +97,7 @@ class SimpModBook:
         :return:
         """
         # Clear any state built up over an episode for the transition distirbutions
-        # TODO: This may be redundant if there is no episode specific state built up in
-        #  trans distribution
-        self.trans_dist.reset_episode()
+        self.clear_episode_lists()
 
         self.observation_update(obs)
 
