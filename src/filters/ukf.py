@@ -141,10 +141,11 @@ class UnscentedKalmanFilter:
                torch.stack(predictive_mus, 1), torch.stack(predictive_sigmas, 1), torch.stack(cross_covariances, 1)
 
     def smooth(self, forward_states):
-        '''
-            RTS Smoothing for UKF: https://users.aalto.fi/~ssarkka/pub/uks-preprint.pdf Simo Sarkka 2008
-        '''
-
+        """
+        RTS Smoothing for UKF: https://users.aalto.fi/~ssarkka/pub/uks-preprint.pdf Simo Sarkka 2008
+        :param forward_states: 
+        :return: 
+        """
         filtered_mu, filtered_sigma, pred_mu, pred_sigma, cross_covariances = forward_states
         T = filtered_mu.size()[1]
 
