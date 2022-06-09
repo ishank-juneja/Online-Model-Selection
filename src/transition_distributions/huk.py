@@ -29,12 +29,12 @@ class HeuristicUnscentedKalman(nn.Module):
         self.Q = torch.diag(self.config.transition_noise).to(self.config.device)
         # R implements the eps_t term in y_t = Cz_t + eps_t
         self.R = self.config.emission_noise * torch.eye(self.config.observation_dimension, device=self.config.device)
-        self.ukf = UnscentedKalmanFilter(state_dim=self.config.state_dimension,
-                                         obs_dim=self.config.observation_dimension,
-                                         control_dim=self.config.action_dimension,
-                                         Q=self.Q,
-                                         R=self.R,
-                                         device=self.config.device)
+        self.filter = UnscentedKalmanFilter(state_dim=self.config.state_dimension,
+                                            obs_dim=self.config.observation_dimension,
+                                            control_dim=self.config.action_dimension,
+                                            Q=self.Q,
+                                            R=self.R,
+                                            device=self.config.device)
         # - - - - - - - - - - -
 
         self.transition = self.config.dynamics_fn(device=self.config.device, log_normal_params=self.config.log_params)
@@ -46,6 +46,6 @@ class HeuristicUnscentedKalman(nn.Module):
         :param sigma_z_cur: Current uncertainty on estimate (from filter)
         :return:
         """
-        mu_z, sigma_z = self.ukf.update_linear(mu_y_next, mu_z_cur, sigma_z_cur, self.emission)
+        mu_z, sigma_z = self.ukf.update(mu_y_next, mu_z_cur, sigma_z_cur, self.emission)
 
         return mu_z, sigma_z

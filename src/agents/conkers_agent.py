@@ -14,5 +14,3 @@ class ConkersAgent(BaseAgent):
 
         # Actions per loop iteration / nrepeats for action
         self.actions_per_loop = 1
-
-
