@@ -92,7 +92,7 @@ class BaseAgent(metaclass=ABCMeta):
         # print('--')
 
         self.x_mu, self.x_sigma = self.model_lib['cartpole'].trans_dist.predict(actions[i].view(1, -1), self.x_mu,
-                                                                                self.x_sigma)
+                                                                                self.x_sigma, )
         # print(self.x_mu)
         # Act in world and get observation
         # TODO for cartpole need to minus action

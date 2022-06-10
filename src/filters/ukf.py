@@ -33,82 +33,12 @@ class UnscentedKalmanFilter:
 
         self.device = device
 
-    def filter(self, prior_mu, prior_sigma, controls, observations, dynamics_fn, measurement_fn):
+    def predict(self, hat_x_plus_prev, P_plus_prev, control, dynamics_fn, Q=None):
         """
-        Inference step for the Kalman filter model, a forward pass
+        Notation used is different from paper and from ref link
         All params/callables here intended for batch inference with shape (B, n)
-        :param prior_mu: Batch of priors over state from last iter. hat{x}^{+}_{k-1} (B, state_dim)
-        :param prior_sigma: Batch of priors over covariance P^{+}_{k-1} (B, state_dim, state_dim)
-        :param controls: Batch of actions u_{k-1} in case of actuated system, shape (B, action_dim)
-        :param observations: Batch of cur. obs./measurements z_{k} (B, obs_dim)
-        :param dynamics_fn: Either nominal simple model dynamics or something else depending on
-         what model is invoking the UKF. Expects shape of states and actions to be (B, state_dim) and (B, action_dim)
-        :param measurement_fn: Function that takes propagated state to predicted observation
-         (B, state_dim), (B, action_dim)
-        :return:
-        """
-        predictive_mus = []
-        predictive_sigmas = []
-        filtered_mus = []
-        filtered_sigmas = []
-        cross_covariances = []
-
-        mu_bar = prior_mu
-        sigma_bar = prior_sigma
-
-        for i in range(controls.size()[1]):
-            mu, sigma = self.update(observations[:, i].view(-1, self.obs_dim),
-                                    mu_bar, sigma_bar, measurement_fn, R)
-            # Predictive step
-            mu_bar, sigma_bar, CC = self.predict(controls[:, i].view(-1, self.control_dim), mu, sigma, dynamics_fn)
-
-            # Store
-            predictive_mus.append(mu_bar)
-            predictive_sigmas.append(sigma_bar)
-            filtered_mus.append(mu)
-            filtered_sigmas.append(sigma)
-            cross_covariances.append(CC)
-
-        return torch.stack(filtered_mus, 1), torch.stack(filtered_sigmas, 1), \
-               torch.stack(predictive_mus, 1), torch.stack(predictive_sigmas, 1), torch.stack(cross_covariances, 1)
-
-    def update(self, mu_y_next, mu_z_cur, sigma_z_cur, measurement_fn, R=None):
-        """
-        :param mu_y_next: Next received observation from perception
-        :param mu_z_cur: Current full state estimate
-        :param sigma_z_cur: Current uncertainty on estimate (from filter)
-        :param measurement_fn: Measurement/observation function in KF framework
-        :param R: Observation noise at current time step R_k (use if varies with k)
-        :return:
-        """
-        if R is None:
-            R = self.R
-        N, _ = mu_z_cur.size()
-        C = measurement_fn.get_C().unsqueeze(0)
-
-        # Compute Kalman Gain
-        S = C.matmul(sigma_z_cur).matmul(C.transpose(1, 2)) + R
-        S_inv = S.inverse()
-        K = sigma_z_cur.matmul(C.transpose(1, 2)).matmul(S_inv)
-
-        # Get innovation
-        innov = mu_y_next.unsqueeze(2) - C.matmul(mu_z_cur.unsqueeze(2))
-
-        # Get new mu
-        mu = mu_z_cur.unsqueeze(2) + K.matmul(innov)
-
-        # Compute sigma using Joseph's form -- should be better numerically
-        #  http://www.anuncommonlab.com/articles/how-kalman-filters-work/part2.html
-        IK_C = torch.eye(self.state_dim, device=self.device) - K.matmul(C)
-        KRK = K.matmul(R.matmul(K.transpose(1, 2)))
-        sigma = IK_C.matmul(sigma_z_cur.matmul(IK_C.transpose(1, 2))) + KRK
-
-        return mu.squeeze(dim=2), sigma
-
-    def predict(self, mu, sigma, control, dynamics_fn, Q=None):
-        """
-        :param mu: Batch of states at the end of prev. iteration hat{x}^{+}_{k-1} (B, state_dim)
-        :param sigma: Batch of covs at the end of previous iteration P^{+}_{k-1} (B, state_dim, state_dim)
+        :param hat_x_plus_prev: Batch of states at the end of prev. iteration hat{x}^{+}_{k-1} (B, state_dim)
+        :param P_plus_prev: Batch of covs at the end of previous iteration P^{+}_{k-1} (B, state_dim, state_dim)
         :param control: Actions to take me to next iteration u_{k-1} of shape (B, action_dim)
         :param dynamics_fn: Operates on a batch of current states and actions (B, state_dim) and (B, action_dim)
         :param Q: Process noise at current time step Q_k (use if varies with k, else None)
@@ -117,25 +47,62 @@ class UnscentedKalmanFilter:
         if Q is None:
             Q = self.Q
 
-        # Get sigma points, shape is (B, 2*n_sigma + 1)
-        sigma_points = self.sigma_point_selector.sigma_points(mu, sigma)
+        # Get sigma points, ret shape is (B, 2*n_sigma + 1)
+        sigma_points = self.sigma_point_selector.sigma_points(hat_x_plus_prev, P_plus_prev)
 
         # Need to duplicate controls for sigma points
         n_sigma = self.sigma_point_selector.get_n_sigma()
         # control: (B, action_dim), sigma_controls: (B, n_sigma * action_dim)
         sigma_controls = control.repeat(1, n_sigma).view(-1, self.control_dim)
 
-        # Apply dynamics: Input is batch of sigma points: [hat{x}^{+}_{i, k−1}]_{i=1}^{2n+1}, u_{k-1}]
-        #  Output is batch: hat{x}^{-}_{k}
+        # Apply dynamics: Input is batch of sigma points: hat{x}^{+}_{i, k−1}]_{i=0}^{2n} and controls: u_{k-1}
+        #  Output is a batch of: hat{x}^{-}_{k}
         new_sigma_points = dynamics_fn(sigma_points, sigma_controls).view(-1, n_sigma, self.state_dim)
 
-        # Get predicted next state
-        mu_bar, cov = self.unscented_transform(new_sigma_points)
-        P_bar = cov + Q
+        # Get predicted next state hat{x}_{k}^{-}
+        hat_x_min_k, cov = self.unscented_transform(new_sigma_points)
+        # Add process noise to get P_{k}^{-}
+        P_min_k = cov + Q
 
-        # Get cross covariance -- this is needed for smoothing
-        CC = self.cross_covariance(mu, mu_bar, sigma_points.view(-1, n_sigma, self.state_dim), new_sigma_points)
-        return mu_bar, P_bar, CC
+        return hat_x_min_k, P_min_k
+
+    def update(self, z_k, hat_x_min_k, P_min_k, obs_fn, R=None):
+        """
+        Update estimate based on observation, called "correct"-step in ref. link
+        Notation used is different from paper and also from link
+        All params/callables here intended for batch inference with shape (B, n)
+        :param z_k: Next received observation from perception-model
+        :param hat_x_min_k: Uncorrected/predicted state estimate
+        :param P_min_k: Uncorrected/predicted uncertainty
+        :param obs_fn: Measurement/observation function in KF framework
+        :param R: Observation noise at current time step R_k (use if varies with k)
+        :return:
+        """
+        if R is None:
+            R = self.R
+        N, _ = hat_x_min_k.size()
+        # Extract matrix associated with linear observation/measurement function
+        C = obs_fn.get_C().unsqueeze(0)
+
+        # Compute Kalman Gain K
+        S = C.matmul(P_min_k).matmul(C.transpose(1, 2)) + R
+        S_inv = S.inverse()
+        K = P_min_k.matmul(C.transpose(1, 2)).matmul(S_inv)
+
+        # Get innovation
+        hat_z_k = C.matmul(hat_x_min_k.unsqueeze(2))
+        innov = z_k.unsqueeze(2) - hat_z_k
+
+        # Get corrected state estimate
+        hat_x_plus_k = hat_x_min_k.unsqueeze(2) + K.matmul(innov)
+
+        # Compute sigma using Joseph's form -- should be better numerically
+        #  http://www.anuncommonlab.com/articles/how-kalman-filters-work/part2.html
+        IK_C = torch.eye(self.state_dim, device=self.device) - K.matmul(C)  # Called A in ref. link
+        KRK = K.matmul(R.matmul(K.transpose(1, 2)))
+        P_plus_k = IK_C.matmul(P_min_k.matmul(IK_C.transpose(1, 2))) + KRK
+
+        return hat_x_plus_k.squeeze(dim=2), P_plus_k
 
     def unscented_transform(self, sigma_points):
         """
@@ -145,20 +112,10 @@ class UnscentedKalmanFilter:
         """
         # Calculate mu and cov based on sigma points and weights
         Wm, Wc = self.sigma_point_selector.get_weights()
-        # First the mean
+        # Use Wm weight vector for means and Wc vector for cov
         mu = (Wm * sigma_points).sum(dim=1)
         cov = self.get_cov(mu, mu, sigma_points, sigma_points, Wc)
         return mu, cov
-
-    def cross_covariance(self, mu_x, mu_z, sigma_x, sigma_z):
-
-        # Calculate mu and cov based on sigma points and weights
-        Wm, Wc = self.sigma_point_selector.get_weights()
-
-        # Now the covariance
-        cov = self.get_cov(mu_x, mu_z, sigma_x, sigma_z, Wc)
-
-        return cov
 
     @staticmethod
     def get_cov(mu_x, mu_z, sigma_x, sigma_z, Wc):

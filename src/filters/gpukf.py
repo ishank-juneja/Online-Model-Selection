@@ -8,14 +8,14 @@ class GPUnscentedKalmanFilter(UnscentedKalmanFilter):
         super(GPUnscentedKalmanFilter, self).__init__(state_dim, obs_dim, control_dim, Q, R, device)
         self.param_dim = param_dim
 
-    def predict(self, control, mu, sigma, gp_dynamics_fn, params=None):
+    def predict(self, hat_x_plus_prev, P_plus_prev, control, dynamics_fn, Q=None):
 
         # get sigma points
-        sigma_points = self.sigma_point_selector.sigma_points(mu, sigma)
+        sigma_points = self.sigma_point_selector.sigma_points(mu, P_plus_prev)
 
         # Need to duplicate controls for sigma points
         n_sigma = self.sigma_point_selector.get_n_sigma()
-        sigma_controls = control.repeat(1, n_sigma).view(-1, self.control_dim)
+        sigma_controls = hat_x_plus_prev.repeat(1, n_sigma).view(-1, self.control_dim)
 
         if params is not None:
             sigma_params = params.view(-1, 1, self.param_dim).repeat(1, n_sigma, 1).view(-1, self.param_dim)

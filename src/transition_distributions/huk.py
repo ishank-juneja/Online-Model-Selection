@@ -1,14 +1,13 @@
-import logging
-import numpy as np
 import torch
 from torch import nn
 from src.filters import UnscentedKalmanFilter
-from src.learned_models import TransitionDeterministicModel, LinearEmission
-from torch.distributions import Normal, MultivariateNormal
-from torch.distributions.kl import kl_divergence
+from src.learned_models import LinearEmission
 
 
 class HeuristicUnscentedKalman(nn.Module):
+    """
+    Class definition for a state transition distribution with a hard-coded uncertainty heuristic
+    """
     def __init__(self, config):
         super(HeuristicUnscentedKalman, self).__init__()
 
@@ -36,8 +35,10 @@ class HeuristicUnscentedKalman(nn.Module):
                                             R=self.R,
                                             device=self.config.device)
         # - - - - - - - - - - -
-
         self.transition = self.config.dynamics_fn(device=self.config.device, log_normal_params=self.config.log_params)
+
+        self.saved_data = None
+        self.start = 0
 
     def update(self, mu_y_next, mu_z_cur, sigma_z_cur):
         """
@@ -49,3 +50,8 @@ class HeuristicUnscentedKalman(nn.Module):
         mu_z, sigma_z = self.ukf.update(mu_y_next, mu_z_cur, sigma_z_cur, self.emission)
 
         return mu_z, sigma_z
+
+    def predict(self, ):
+
+
+
