@@ -85,7 +85,7 @@ class BaseVizTest(metaclass=ABCMeta):
 
         # Take a step for every action
         for idx in range(nactions):
-            cur_obs, _, done, _ = self.env.step(actions[idx])
+            cur_obs, _, done, _ = self.env.predict()
             frames.append(cur_obs)
             if done:
                 break

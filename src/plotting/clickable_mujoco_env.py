@@ -117,7 +117,7 @@ class ClickableMujocoEnv:
         also return pixel coordinates of robot to use to generate next action
         :return:
         """
-        obs, cost, done, info = self.env.step(action)
+        obs, cost, done, info = self.env.predict()
         # Add to trajectory structs
         state = info['state']
         self.states.append(state)

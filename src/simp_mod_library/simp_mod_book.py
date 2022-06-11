@@ -42,8 +42,8 @@ class SimpModBook:
         self.cfg = self.perception.cfg()
 
         # Containers for current simple model related estimates on the books
-        self.mu_z = torch.zeros(1, self.cfg.state_dimension, device=self.device)
-        self.x_mu = torch.zeros(1, self.cfg.param_dimension, device=self.device)
+        self.x_mu = torch.zeros(1, self.cfg.state_dim, device=self.cfg.device)
+        self.x_sigma = self.cfg.prior_cov * torch.eye(self.cfg.state_dim, device=self.cfg.device).unsqueeze(0)
 
         self.trans_dist = HeuristicUnscentedKalman(self.cfg)
 
@@ -66,6 +66,55 @@ class SimpModBook:
         self.episode_data = dict()
         # Init dict entries with empty lists
         self.clear_episode_lists()
+
+    def step(self):
+        """
+        Take a step forward with the simp model being kept on this book
+        :return:
+        """
+        # Get action from controller
+        # Sample states
+        # state = self.x_mu.repeat(self.config.controller_N, 1)
+        # state = torch.from_numpy(self.true_state_history[-1]).to(device='cuda:0').repeat(self.config.controller_N, 1)
+        # state = state.reshape(self.config.controller_N, self.state_dim)
+        state = self.x_mu.reshape(1, -1)
+
+        action = np.random.uniform(-1.0, 1.0)
+
+        # print(self.x_mu)
+
+        # print('--')
+
+        self.x_mu, self.x_sigma = self.model_lib['cartpole'].trans_dist.predict(actions[i].view(1, -1), self.x_mu,
+                                                                                self.x_sigma, )
+        # print(self.x_mu)
+        # Act in world and get observation
+        # TODO for cartpole need to minus action
+        observation, reward, done, info = self.env.predict()
+        true_state = info['state']
+        # print(true_state[:5])
+        total_reward += reward
+        # Render and update
+        z_mu, z_std = self.observation_update(observation)
+        # print(z_mu)
+        # Log all data from this step
+        self.true_state_history.append(true_state)
+        self.action_history.append(actions[i].cpu().numpy())
+        self.z_mu_history.append(z_mu.cpu().numpy())
+        self.z_std_history.append(z_std.cpu().numpy())
+        self.img_history.append(observation)
+
+        state_dimension = self.model_lib['cartpole'].cfg.state_dimension
+
+        self.state_cov_history.append(self.x_sigma[0, :state_dimension, :state_dimension].detach().cpu().numpy())
+        self.state_mu_history.append(self.x_mu[0, :state_dimension].detach().cpu().numpy())
+        self.param_cov_history.append(torch.diag(self.x_sigma[0])[state_dimension:].detach().cpu().numpy())
+        self.param_mu_history.append(self.x_mu[0, state_dimension:].detach().cpu().numpy())
+
+        if done:
+            return done, False, total_reward, info
+
+        return done, False, total_reward, info
 
     def clear_episode_lists(self):
         # Initialize all the episode-specific datasets with empty lists

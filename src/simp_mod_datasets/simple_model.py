@@ -124,7 +124,7 @@ class SimpleModel:
         return: a dictionary of masks contained in obs in addition to =returns by env.step()
         """
         # Action space of gym environment is 3D for Dubins Car env
-        obs, rew, done, info = self.env.step(action)
+        obs, rew, done, info = self.env.predict()
         return obs, rew, done, info
 
     def refresh_xml(self):

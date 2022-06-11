@@ -64,7 +64,7 @@ def main(args):
             # Sample a random action
             action = env.action_space.sample()
             # Simulate a step
-            cur_obs, _, traj_done, _ = env.step(action)
+            cur_obs, _, traj_done, _ = env.predict()
 
             if nframes == '1frame':
                 saved = frames_handler.save_1frame(cur_obs=cur_obs, unique_id=nsaved)

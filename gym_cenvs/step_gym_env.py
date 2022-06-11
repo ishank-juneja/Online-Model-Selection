@@ -36,7 +36,7 @@ def main(args):
             action = np.random.uniform(-1.0, 1.0)
             # action = -1.0
             # Simulate a step
-            cur_obs, _, done, info = env.step(action)
+            cur_obs, _, done, info = env.predict()
 
             if args.show:
                 if img is None:

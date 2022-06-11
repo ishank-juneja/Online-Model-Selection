@@ -53,12 +53,10 @@ class SimpModLib:
     def nmodels(self, nmodels: int):
         self._nmodels = nmodels
 
-    def observation_update(self, obs: np.ndarray):
-        """
-
-        :param obs:
-        :return:
-        """
+    def step(self):
+        for model in self.model_names:
+            # Send initial obs to simple models for initializing their approximate state estimates
+            self.lib[model].step()
 
     def reset_episode(self, obs: np.ndarray):
         """
