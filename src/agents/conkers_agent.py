@@ -9,8 +9,19 @@ class ConkersAgent(BaseAgent):
         # Set task specific parameters here
         self.env_name: str = 'Conkers-v0'
 
-        # Actually make the agent based on the task specific params set in this class definition
-        self.make_agent_for_task()
-
         # Actions per loop iteration / nrepeats for action
         self.actions_per_loop = 1
+
+        # GT State dimension of system for task
+        self.state_dimension = 33
+        # Dimensions of actions for task
+        self.action_dimension = 1
+        # Set max episode duration for task
+        self.episode_T = 100
+        # Set planning horizon for task
+        self.planner_H = 20
+        # Number of trajectories simulated by planner
+        self.planner_N = 1000
+
+        # Actually make the agent based on the task specific params set in this class definition
+        self.make_agent_for_task()

@@ -53,10 +53,25 @@ class SimpModLib:
     def nmodels(self, nmodels: int):
         self._nmodels = nmodels
 
-    def step(self):
+    def predict(self, action):
+        """
+        Run predict on the books of all models
+        :param action:
+        :return:
+        """
         for model in self.model_names:
-            # Send initial obs to simple models for initializing their approximate state estimates
-            self.lib[model].step()
+            # Send action to models for letting them predict using their resp. dynamics
+            self.lib[model].predict(action)
+
+    def update(self, obs):
+        """
+        Run observation_update on the books of all simple models
+        :param obs:
+        :return:
+        """
+        for model in self.model_names:
+            # Send observation to all models to let them update using their resp. perceptions
+            self.lib[model].observation_update(obs)
 
     def reset_episode(self, obs: np.ndarray):
         """

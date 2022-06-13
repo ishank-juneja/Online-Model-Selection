@@ -121,6 +121,15 @@ class SimpModBook:
         for data_key in self.data_keys:
             self.episode_data[data_key] = []
 
+    def predict(self, action):
+        """
+        Invoke predict of trans_dist
+        :param action:
+        :return:
+        """
+        self.z_mu, self.z_sigma = self.trans_dist.predict(action, self.z_mu, self.z_sigma)
+        return
+
     def observation_update(self, obs: np.ndarray):
         """
         Performs a trans_model + filter update based on received observation

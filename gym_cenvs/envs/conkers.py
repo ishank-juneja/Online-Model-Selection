@@ -181,5 +181,5 @@ class Conkers(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
 
             resample_env = initial_collision or conker_near_goal or cart_near_goal
 
-        # Retirn the ibservation at which handing over env for stepping
+        # Return the ibservation at which handing over env for stepping
         return self._get_obs()

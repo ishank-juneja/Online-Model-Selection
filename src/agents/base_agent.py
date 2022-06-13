@@ -21,8 +21,12 @@ class BaseAgent(metaclass=ABCMeta):
         # Devices
         self.device = device
 
-        # Dimensionality of an action vector
+        # Dimensionality of an action vector for env
         self.action_dimension: int = None
+        # Dimensionality of ground struth state for an env
+        self.state_dimension: int = None
+        # Episode horizon set for task
+        self.episode_T: int = None
 
         self.model_lib = SimpModLib(smodel_list, device)
 
@@ -41,6 +45,9 @@ class BaseAgent(metaclass=ABCMeta):
         for data_key in self.data_keys:
             self.episode_data[data_key] = []
 
+        # Vars to track agent specific objects
+        self.gt_state: torch.Tensor = None
+
     def make_agent_for_task(self):
         """
         Invoked after task specific params have been set in derived class
@@ -50,9 +57,9 @@ class BaseAgent(metaclass=ABCMeta):
         self.env.seed(0)
         self.env.action_space.seed(0)
 
-        # TODO: Infer action dimension from the environment
-        #  Check consistency of this dimension with the controls dimension of simple model lib
-        self.action_dimension = 1
+        # TODO: Check consistency of action dimension with simple model lib here
+
+        self.gt_state = torch.zeros(self.state_dimension, dtype=torch.float32)
 
         return
 
@@ -77,6 +84,8 @@ class BaseAgent(metaclass=ABCMeta):
         # Reset episode specific parameters
         self.reset_episode()
 
+        for t in range(0, self.epi)
+
         done, fail, reward, info = self.step()
 
     def step(self):
@@ -87,13 +96,27 @@ class BaseAgent(metaclass=ABCMeta):
         # TODO: Change random actions to planned actions from controller
         # Random action for testing
         action = np.random.uniform(-1, 1)
-        # Assemble action into compatible torch tensor
-        actions = torch.tensor([[action]])
 
         # Total reward seen so far
         total_reward = 0
 
-        self.x
+        # TODO: Loop over possibly longer sequence of actions instead of single action
+
+        # Invoke predict method of underlying simple models
+        self.model_lib.predict(action)
+        # Take the action in world and get observation
+        obs, rew, done, info = self.env.step(action)
+
+        gt_state = info['state']
+        total_reward += rew
+
+        # Get simple model state and uncertainty estimates for all models in lib after observation update
+        z_mu_list = self.model_lib.update(obs)
+
+        # Log data from step
+        self.episode_data['gt_state_history'].append(gt_state)
+
+        return done, False, total_reward, info
 
     def reset_episode(self):
         """
