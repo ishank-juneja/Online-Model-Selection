@@ -53,6 +53,8 @@ def main(args):
     # Reset all online estimated parameters associated with agent
     agent.reset_trial()
 
+    agent.do_episode()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

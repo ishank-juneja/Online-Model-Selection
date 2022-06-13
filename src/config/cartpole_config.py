@@ -7,8 +7,16 @@ class Config(CommonEncConfig):
     def __init__(self, data_folder: str = None):
         super(Config, self).__init__(data_folder)
 
+        # - - - - - - - - - - - - - - - - - - - -
+        # Sys-id-ed params related atts
+        # Whether to perform sys-id at all
+        self.do_sys_id = False
         # Number of parameters in the dynamics that are unobservable from images (example mass)
+        #  and hence need to be sys-id-ed
         self.param_dimension = 3
+        # Whether to use params passed through log (better for learning)
+        self.log_params = True
+        # - - - - - - - - - - - - - - - - - - - -
 
         # Needed for both training and assembling encoder
         # Dimension of complete state needed to perform planning with
@@ -50,10 +58,7 @@ class Config(CommonEncConfig):
         self.transition_noise = .1 * torch.ones(self.state_dimension, device=self.device)
         self.params_noise = 1e-2 * torch.ones(self.param_dimension, device=self.device)
 
-        self.do_sys_id = False
-        self.param_map_estimate = False
-
-        self.dynamics_fn = CartpoleDynamics
+        self.dynamics_class = CartpoleDynamics
         self.learn_dynamics = False
         self.learn_emission = False
         self.linear_emission = True
@@ -67,6 +72,6 @@ class Config(CommonEncConfig):
 
         self.beta_init = .7
 
+        # Priors over params
         self.prior_cov = 1.0
 
-        self.use_sqrt_ukf = False

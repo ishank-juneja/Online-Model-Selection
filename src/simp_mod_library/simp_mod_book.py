@@ -8,7 +8,7 @@ import torch
 
 class SimpModBook:
     """
-    Class to encapsulate the attributes associated with a single simple model
+    Class to encapsulate the attributes associated with a single simple model, Notation same as paper
     Collection of SimpModBooks is a SimpModLib
     Attributes:
     1. Kinematic/dynamic/kinodynamic transition function (trans_fn)
@@ -41,9 +41,9 @@ class SimpModBook:
         # Config for simple model book-keeping is identical to config from perception
         self.cfg = self.perception.cfg()
 
-        # Containers for current simple model related estimates on the books
-        self.x_mu = torch.zeros(1, self.cfg.state_dim, device=self.cfg.device)
-        self.x_sigma = self.cfg.prior_cov * torch.eye(self.cfg.state_dim, device=self.cfg.device).unsqueeze(0)
+        # Containers for current simple model related estimates on the books, add a dim. at axis=0 for batched pro.
+        self.z_mu = torch.zeros(1, self.cfg.state_dimension, device=self.cfg.device)
+        self.z_sigma = self.cfg.prior_cov * torch.eye(self.cfg.state_dimension, device=self.cfg.device).unsqueeze(0)
 
         self.trans_dist = HeuristicUnscentedKalman(self.cfg)
 
@@ -67,54 +67,20 @@ class SimpModBook:
         # Init dict entries with empty lists
         self.clear_episode_lists()
 
-    def step(self):
+    def __str__(self):
+        return "Book for simple model {0}".format(self.name)
+
+    def __repr__(self):
+        return self.__str__()
+
+    def init_model_state(self):
         """
-        Take a step forward with the simp model being kept on this book
+        Re-initialize simple model state
         :return:
         """
-        # Get action from controller
-        # Sample states
-        # state = self.x_mu.repeat(self.config.controller_N, 1)
-        # state = torch.from_numpy(self.true_state_history[-1]).to(device='cuda:0').repeat(self.config.controller_N, 1)
-        # state = state.reshape(self.config.controller_N, self.state_dim)
-        state = self.x_mu.reshape(1, -1)
-
-        action = np.random.uniform(-1.0, 1.0)
-
-        # print(self.x_mu)
-
-        # print('--')
-
-        self.x_mu, self.x_sigma = self.model_lib['cartpole'].trans_dist.predict(actions[i].view(1, -1), self.x_mu,
-                                                                                self.x_sigma, )
-        # print(self.x_mu)
-        # Act in world and get observation
-        # TODO for cartpole need to minus action
-        observation, reward, done, info = self.env.predict()
-        true_state = info['state']
-        # print(true_state[:5])
-        total_reward += reward
-        # Render and update
-        z_mu, z_std = self.observation_update(observation)
-        # print(z_mu)
-        # Log all data from this step
-        self.true_state_history.append(true_state)
-        self.action_history.append(actions[i].cpu().numpy())
-        self.z_mu_history.append(z_mu.cpu().numpy())
-        self.z_std_history.append(z_std.cpu().numpy())
-        self.img_history.append(observation)
-
-        state_dimension = self.model_lib['cartpole'].cfg.state_dimension
-
-        self.state_cov_history.append(self.x_sigma[0, :state_dimension, :state_dimension].detach().cpu().numpy())
-        self.state_mu_history.append(self.x_mu[0, :state_dimension].detach().cpu().numpy())
-        self.param_cov_history.append(torch.diag(self.x_sigma[0])[state_dimension:].detach().cpu().numpy())
-        self.param_mu_history.append(self.x_mu[0, state_dimension:].detach().cpu().numpy())
-
-        if done:
-            return done, False, total_reward, info
-
-        return done, False, total_reward, info
+        self.z_mu = torch.zeros(1, self.cfg.state_dimension, device=self.cfg.device)
+        self.z_sigma = self.cfg.prior_cov * torch.eye(self.cfg.state_dimension, device=self.cfg.device).unsqueeze(0)
+        return
 
     def clear_episode_lists(self):
         # Initialize all the episode-specific datasets with empty lists
@@ -140,9 +106,8 @@ class SimpModBook:
         masked, conf, mu_y, sigma_y = self.perception(obs)
 
         # Update belief in world
-        self.x_mu, self.x_sigma = self.trans_dist.update(mu_y, self.x_mu, self.x_sigma)
-
-        return z_mu, z_std
+        self.z_mu, self.z_sigma = self.trans_dist.update(mu_y, self.z_mu, self.z_sigma)
+        return
 
     def state_dim(self) -> int:
         return self.cfg.state_dimension
@@ -154,9 +119,11 @@ class SimpModBook:
          invoking Lib and Book as tools
         :return:
         """
-        # Clear any state built up over an episode for the transition distirbutions
+        # Reset state
+        self.init_model_state()
+        # Clear any state built up over an episode for the transition distributions
         self.clear_episode_lists()
-
+        # Infer the initial state for starting to plan
         self.observation_update(obs)
 
     def hard_reset(self):

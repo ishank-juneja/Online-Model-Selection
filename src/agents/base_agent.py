@@ -23,6 +23,8 @@ class BaseAgent(metaclass=ABCMeta):
 
         # Dimensionality of an action vector for env
         self.action_dimension: int = None
+        # Number of times we repeat the same action (action repetition, task specific)
+        self.actions_per_loop: int = None
         # Dimensionality of ground struth state for an env
         self.state_dimension: int = None
         # Episode horizon set for task
@@ -77,16 +79,33 @@ class BaseAgent(metaclass=ABCMeta):
     def do_episode(self):
         """
         Agent method to online interact with the complex env over an episode
+         While doing an episode, there are no parameter updates, only the datasets are appended
         :return:
         """
-        #
+        # Ensure no parameter updates (also less memory since no grads are tracked)
+        with torch.no_grad():
+            while True:
+                # Clear episode specific state
+                self.reset_episode()
+                # Reward accumulated over course of episode
+                cum_reward = 0.0
+                try:
+                    for t in range(0, self.episode_T, self.actions_per_loop):
+                        done, fail, reward, info = self.step()
+                        cum_reward += reward
 
-        # Reset episode specific parameters
-        self.reset_episode()
+                        if done or fail:
+                            break
+                    if t < 5:
+                        continue
+                    break
+                except Exception as e:
+                    print(e)
+                    continue
 
-        for t in range(0, self.epi)
+            fail = not info['success']
 
-        done, fail, reward, info = self.step()
+        return fail, t
 
     def step(self):
         """
@@ -96,6 +115,7 @@ class BaseAgent(metaclass=ABCMeta):
         # TODO: Change random actions to planned actions from controller
         # Random action for testing
         action = np.random.uniform(-1, 1)
+        actions = torch.tensor([[action]])
 
         # Total reward seen so far
         total_reward = 0
@@ -103,9 +123,9 @@ class BaseAgent(metaclass=ABCMeta):
         # TODO: Loop over possibly longer sequence of actions instead of single action
 
         # Invoke predict method of underlying simple models
-        self.model_lib.predict(action)
+        self.model_lib.predict(actions)
         # Take the action in world and get observation
-        obs, rew, done, info = self.env.step(action)
+        obs, rew, done, info = self.env.step(actions[0, 0])
 
         gt_state = info['state']
         total_reward += rew
@@ -132,13 +152,18 @@ class BaseAgent(metaclass=ABCMeta):
 
         # Frame returned initially from mjco-py environment has a jump from subsequent so ignore it
         _ = self.env.reset()
-        obs, _, _, info = self.env.predict()
+        obs, rew, done, info = self.env.step(np.zeros(self.action_dimension))
+        # Fetch gt_state from info
+        gt_state = info['state']
 
-        # Reset the episode-specific state of the simple model library
+        # Reset the episode-specific params of the simple model library
+        #  Particularly reinit state, also uses obs to initialize simple-model state estimates for planning
         self.model_lib.reset_episode(obs)
 
         # Append GT state of complex environment to online collected data
-        self.episode_data['gt_state_history'].append(info['state'])
+        self.episode_data['gt_state_history'].append(gt_state)
+
+        # TODO: Reset cost functions once planning is added back
 
     def reset_trial(self):
         """

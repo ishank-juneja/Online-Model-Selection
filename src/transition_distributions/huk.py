@@ -36,7 +36,8 @@ class HeuristicUnscentedKalman(nn.Module):
                                             R=self.R,
                                             device=self.config.device)
         # - - - - - - - - - - -
-        self.transition = self.config.dynamics_fn(device=self.config.device, log_normal_params=self.config.log_params)
+        self.transition = self.config.dynamics_class(device=self.config.device,
+                                                     log_normal_params=self.config.log_params)
 
         self.saved_data = None
         self.start = 0
@@ -58,7 +59,7 @@ class HeuristicUnscentedKalman(nn.Module):
         # Return predicted state estimates
         return hat_mu_z_min, sigma_z_min
 
-    def update(self, mu_y_t, hat_mu_z_min, sigma_z_min, R):
+    def update(self, mu_y_t, hat_mu_z_min, sigma_z_min, R=None):
         """
         :param mu_y_t: State estimate from perception at time-step t
         :param hat_mu_z_min: Uncorrected/propagated state estimate for time t
@@ -71,3 +72,10 @@ class HeuristicUnscentedKalman(nn.Module):
         # Current best estimate of mean and variance
         return hat_mu_z, sigma_z
 
+    def reset_trial(self):
+        """
+        Reset learned parameters at the start of a new trial
+        :return:
+        """
+        self.transition.reset_params()
+        return
