@@ -18,6 +18,12 @@ class Config(CommonEncConfig):
         self.log_params = True
         # - - - - - - - - - - - - - - - - - - - -
 
+        # - - - - - - - - - - - - - - - - - - - -
+        # Actuator related parameters
+        # Number of dimensions in gt actuator state appended to simple model state
+        self.actuator_dimension = 2
+        # - - - - - - - - - - - - - - - - - - - -
+
         # Dim of state returned by gym environment
         self.state_dimension = 4
 

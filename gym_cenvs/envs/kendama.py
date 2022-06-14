@@ -114,10 +114,12 @@ class Kendama(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
 
     def _get_state(self):
         # Old Tom version
+        # TODO: There was a qfrc_constraint term here in xdtl
+        #  does removing it have any impact on RL methods that use the
+        #  entire ground truth state ???
         custom_state = np.concatenate([
             self.sim.data.qpos,  # cart x pos
-            np.clip(self.sim.data.qvel, -10, 10),
-            np.clip(self.sim.data.qfrc_constraint, -10, 10)
+            np.clip(self.sim.data.qvel, -10, 10)
         ]).ravel()
         # Modified to return ball/mass coordinates
         # custom_state = np.concatenate([

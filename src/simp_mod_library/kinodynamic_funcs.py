@@ -10,12 +10,15 @@ class BaseDynamics(nn.Module, metaclass=ABCMeta):
     1. The exact transition function in the Heuristic Unscented Kalman (HUK) model
     2. The nominal transition function hat{f} for the GP learned model (GPUK) model
     """
-    def __init__(self, device, log_normal_params):
+    def __init__(self, device: str, log_normal_params: bool, mode: str):
         super(BaseDynamics, self).__init__()
         # Device on which data/compute sits
         self.device = device
         # Whether estimating sys-id parameters as log_normal values
         self.log_normal_params = log_normal_params
+        # Purpose for which using dynamics
+        #  Supported Options: filter, MPC
+        self.mode: str = mode
 
         # - - - - - - - - - - - - - - - - -
         # Some parameters common to simple model transition functions
@@ -53,8 +56,8 @@ class BaseDynamics(nn.Module, metaclass=ABCMeta):
 
 
 class CartpoleDynamics(BaseDynamics):
-    def __init__(self, device: str = 'cuda:0', log_normal_params: bool = False):
-        super(CartpoleDynamics, self).__init__(device=device, log_normal_params=log_normal_params)
+    def __init__(self, device: str = 'cuda:0', log_normal_params: bool = False, mode: str = "MPC"):
+        super(CartpoleDynamics, self).__init__(device=device, log_normal_params=log_normal_params, mode=mode)
 
         # Doesn't make much difference so hard-coded to fixed value
         self.linear_damping = torch.tensor(0.2, device=self.device)
@@ -174,8 +177,8 @@ class CartpoleDynamics(BaseDynamics):
 
 
 class BallDynamics(BaseDynamics):
-    def __init__(self, device: str = 'cuda:0', log_normal_params: bool = False):
-        super(BallDynamics, self).__init__(device=device, log_normal_params=log_normal_params)
+    def __init__(self, device: str = 'cuda:0', log_normal_params: bool = False, mode: str = "MPC"):
+        super(BallDynamics, self).__init__(device=device, log_normal_params=log_normal_params, mode=mode)
 
         # Unknown dynamics parameters defaults
         self.robot_mass_def = torch.tensor(1.0, device=self.device)
@@ -202,6 +205,14 @@ class BallDynamics(BaseDynamics):
             raise NotImplementedError("Non log normal params are not implemented for Cartpole")
         return torch.stack((m_robot,), dim=0)
 
+    def propagate_MPC(self, state, action):
+        """
+        Version of forward when using full dynamics including actuator kinematics/dynamics for planning
+        :param state:
+        :param action:
+        :return:
+        """
+
     def forward(self, state, action):
         """
         Propagate state and action via freely falling ball dynamics
@@ -210,44 +221,46 @@ class BallDynamics(BaseDynamics):
         :param action: Simply moves the cart around as if there were no tension in the rope (i.e. no effect on cup)
         :return:
         """
-        # Preprocess variables
-        x_robot = state[:, 0].view(-1, 1)
-        xball = state[:, 1].view(-1, 1)
-        yball = state[:, 2].view(-1, 1)
-        # x_dot == v_cart
-        v_robot = state[:, 3].view(-1, 1)
-        vx_ball = state[:, 4].view(-1, 1)
-        vy_ball = state[:, 5].view(-1, 1)
+        if self.mode == "MPC":
+            # Preprocess variables
+            x_robot = state[:, 0].view(-1, 1)
+            xball = state[:, 1].view(-1, 1)
+            yball = state[:, 2].view(-1, 1)
+            # x_dot == v_cart
+            v_robot = state[:, 3].view(-1, 1)
+            vx_ball = state[:, 4].view(-1, 1)
+            vy_ball = state[:, 5].view(-1, 1)
 
-        g = self.g
+            g = self.g
 
-        # Clamp action magnitude just like it is clamped on complex object environment
-        force = self.gear * action.clamp(min=-1, max=1)
+            # Clamp action magnitude just like it is clamped on complex object environment
+            force = self.gear * action.clamp(min=-1, max=1)
 
-        # Do dynamics for freely falling ball under gravity
-        # Acceleration of robot
-        robot_acc = self.robot_mass / force
+            # Do dynamics for freely falling ball under gravity
+            # Acceleration of robot
+            robot_acc = self.robot_mass / force
 
-        ball_yacc = -g
-        ball_xacc = 0.0
+            ball_yacc = -g
+            ball_xacc = 0.0
 
-        # Fill-out new values
-        new_vxball = vx_ball + self.dt * ball_xacc
-        new_vyball = vy_ball + self.dt * ball_yacc
-        new_v_robot = v_robot + self.dt * robot_acc
+            # Fill-out new values
+            new_vxball = vx_ball + self.dt * ball_xacc
+            new_vyball = vy_ball + self.dt * ball_yacc
+            new_v_robot = v_robot + self.dt * robot_acc
 
-        new_xball = xball + 0.5 * self.dt * (vx_ball + new_vxball)
-        new_yball = yball + 0.5 * self.dt * (vy_ball + new_vyball)
-        new_x_robot = x_robot + 0.5 * self.dt * (v_robot + new_v_robot)
+            new_xball = xball + 0.5 * self.dt * (vx_ball + new_vxball)
+            new_yball = yball + 0.5 * self.dt * (vy_ball + new_vyball)
+            new_x_robot = x_robot + 0.5 * self.dt * (v_robot + new_v_robot)
 
-        vlim = 20
-        new_vxball = new_vxball.clamp(min=-vlim, max=vlim)
-        new_vyball = new_vyball.clamp(min=-vlim, max=vlim)
-        new_v_robot = new_v_robot.clamp(min=-vlim, max=vlim)
+            vlim = 20
+            new_vxball = new_vxball.clamp(min=-vlim, max=vlim)
+            new_vyball = new_vyball.clamp(min=-vlim, max=vlim)
+            new_v_robot = new_v_robot.clamp(min=-vlim, max=vlim)
 
-        next_state = torch.cat((new_x_robot, new_xball, new_yball, new_v_robot, new_vxball, new_vyball), 1)
+            next_state = torch.cat((new_x_robot, new_xball, new_yball, new_v_robot, new_vxball, new_vyball), 1)
 
-        return next_state
+            return next_state
+
 
 
 if __name__ == '__main__':

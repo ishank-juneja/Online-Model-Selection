@@ -192,15 +192,15 @@ class MerweSigmaPoints:
         # Put sigma on cpu() due to the bug here
         #  https://discuss.pytorch.org/t/cuda-illegal-memory-access-when-using-batched-torch-cholesky/51624/13
         # Cholesky needed to find sqrt of cov matrices
-        U = torch.cholesky((self.lamb + self.n) * sigma.cpu()).to(self.device)
-        # U = torch.cholesky((self.lamb + self.n) * sigma)
+        L = torch.linalg.cholesky((self.lamb + self.n) * sigma.cpu()).to(self.device)
+        # L = torch.cholesky((self.lamb + self.n) * sigma)
 
         # Init list of sigma points with just the previous mean
         sigmas = [mu]
         # Locate other axial sigma points
         for i in range(self.n):
-            x1 = mu - U[:, :, i]
-            x2 = mu + U[:, :, i]
+            x1 = mu - L[:, :, i]
+            x2 = mu + L[:, :, i]
             sigmas.extend([x1, x2])
         return torch.stack(sigmas, 1).view(-1, self.n)
 

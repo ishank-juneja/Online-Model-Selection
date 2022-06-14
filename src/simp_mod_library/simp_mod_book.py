@@ -41,9 +41,13 @@ class SimpModBook:
         # Config for simple model book-keeping is identical to config from perception
         self.cfg = self.perception.cfg()
 
+        # State dimension used for keeping the book of model with name
+        # self.nstates = self.cfg.state_dimension + self.cfg.actuator_dimension
+        self.nstates = self.cfg.state_dimension
+
         # Containers for current simple model related estimates on the books, add a dim. at axis=0 for batched pro.
-        self.z_mu = torch.zeros(1, self.cfg.state_dimension, device=self.cfg.device)
-        self.z_sigma = self.cfg.prior_cov * torch.eye(self.cfg.state_dimension, device=self.cfg.device).unsqueeze(0)
+        self.z_mu = torch.zeros(1, self.nstates, device=self.cfg.device)
+        self.z_sigma = self.cfg.prior_cov * torch.eye(self.nstates, device=self.cfg.device).unsqueeze(0)
 
         self.trans_dist = HeuristicUnscentedKalman(self.cfg)
 
@@ -134,3 +138,4 @@ class SimpModBook:
         # Reset the online learned UKF related parameters
         self.trans_dist.transition.reset_params()
         # TODO: Increase the scope of the resets once planning etc. are added
+

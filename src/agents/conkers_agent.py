@@ -23,5 +23,9 @@ class ConkersAgent(BaseAgent):
         # Number of trajectories simulated by planner
         self.planner_N = 1000
 
+        # Indices of the gt state that are observable from the env
+        # Ex: For passing down the gt values of actuator related quantities
+        self.obs_gt_idx = [0, 11]
+
         # Actually make the agent based on the task specific params set in this class definition
         self.make_agent_for_task()

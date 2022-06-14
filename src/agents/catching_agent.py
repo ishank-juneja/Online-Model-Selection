@@ -8,7 +8,7 @@ class CatchingAgent(BaseAgent):
         super(CatchingAgent, self).__init__(smodel_list=smodel_list, device=device)
 
         # Set task specific parameters here
-        self.env_name: str = 'Kendama-v0'
+        self.env_name: str = 'Catching-v0'
 
         # Planning/Control horizon for task
         self.episode_T = 100
@@ -22,4 +22,9 @@ class CatchingAgent(BaseAgent):
 
         # Actually make the agent based on the task specific params set in this class definition
         self.make_agent_for_task()
+
+        # Indices of the gt state that are observable from the env
+        # Ex: For passing down the gt values of actuator related quantities
+        self.obs_gt_idx = [0, 8]
+
 

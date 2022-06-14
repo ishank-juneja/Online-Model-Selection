@@ -5,6 +5,7 @@ from typing import List, Union
 
 class SimpModLib:
     """
+    Abbrieviated SML
     Class to encapsulate everything needed for the interaction between the agent and the library of simple model
     dynamics priors. Lib is a tool used by BaseAgent.
     Can be thought of as a sophisticated wrapper around a list of SimpModBooks (SMB)

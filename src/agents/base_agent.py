@@ -50,6 +50,9 @@ class BaseAgent(metaclass=ABCMeta):
         # Vars to track agent specific objects
         self.gt_state: torch.Tensor = None
 
+        # Special indices within gt_state that are passed down to SML
+        self.obs_gt_idx: List[int] = None
+
     def make_agent_for_task(self):
         """
         Invoked after task specific params have been set in derived class
@@ -89,20 +92,17 @@ class BaseAgent(metaclass=ABCMeta):
                 self.reset_episode()
                 # Reward accumulated over course of episode
                 cum_reward = 0.0
-                try:
-                    for t in range(0, self.episode_T, self.actions_per_loop):
-                        done, fail, reward, info = self.step()
-                        cum_reward += reward
+                for t in range(0, self.episode_T, self.actions_per_loop):
+                    done, fail, reward, info = self.step()
+                    cum_reward += reward
 
-                        if done or fail:
-                            break
-                    if t < 5:
-                        continue
-                    break
-                except Exception as e:
-                    print(e)
+                    if done or fail:
+                        break
+                # Let an episode drag on for 5 steps even when done ... ?
+                # TODO: determine if above is necessary
+                if t < 5:
                     continue
-
+                break
             fail = not info['success']
 
         return fail, t
