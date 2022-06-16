@@ -54,6 +54,38 @@ class BaseDynamics(nn.Module, metaclass=ABCMeta):
         """
         return torch.exp(params)
 
+    def forward(self, state, action):
+        """
+        Propagate state and action via cartpole dynamics
+        :param state: Cartpole state definition: [x_cart (m), x_mass (m), y_mass (m), v_cart (m/s), theta_dot (rad/s)]
+        :param action: Force on cart in N
+        :return:
+        """
+        if self.mode == 'filter':
+            return self.propagate_filter(state, action)
+        elif self.mode == 'MPC':
+            return self.propagate_mpc(state, action)
+        else:
+            raise NotImplementedError
+
+    def propagate_mpc(self, state, action):
+        """
+        Dynamics method invoked when instantiated under mode MPC
+        :param state:
+        :param action:
+        :return:
+        """
+        raise NotImplementedError
+
+    def propagate_filter(self, state, action):
+        """
+        Dynamics method invoked when instantiated under mode filter
+        :param state:
+        :param action:
+        :return:
+        """
+        raise NotImplementedError
+
 
 class CartpoleDynamics(BaseDynamics):
     def __init__(self, device: str = 'cuda:0', log_normal_params: bool = False, mode: str = "MPC"):
@@ -109,7 +141,7 @@ class CartpoleDynamics(BaseDynamics):
 
         return torch.stack((mp, mc, b1), dim=0)
 
-    def forward(self, state, action):
+    def propagate_filter(self, state, action):
         """
         Propagate state and action via cartpole dynamics
         :param state: Cartpole state definition: [x_cart (m), x_mass (m), y_mass (m), v_cart (m/s), theta_dot (rad/s)]
@@ -212,6 +244,44 @@ class BallDynamics(BaseDynamics):
         :param action:
         :return:
         """
+        # Preprocess variables
+        x_robot = state[:, 0].view(-1, 1)
+        xball = state[:, 1].view(-1, 1)
+        yball = state[:, 2].view(-1, 1)
+        # x_dot == v_cart
+        v_robot = state[:, 3].view(-1, 1)
+        vx_ball = state[:, 4].view(-1, 1)
+        vy_ball = state[:, 5].view(-1, 1)
+
+        g = self.g
+
+        # Clamp action magnitude just like it is clamped on complex object environment
+        force = self.gear * action.clamp(min=-1, max=1)
+
+        # Do dynamics for freely falling ball under gravity
+        # Acceleration of robot
+        robot_acc = self.robot_mass / force
+
+        ball_yacc = -g
+        ball_xacc = 0.0
+
+        # Fill-out new values
+        new_vxball = vx_ball + self.dt * ball_xacc
+        new_vyball = vy_ball + self.dt * ball_yacc
+        new_v_robot = v_robot + self.dt * robot_acc
+
+        new_xball = xball + 0.5 * self.dt * (vx_ball + new_vxball)
+        new_yball = yball + 0.5 * self.dt * (vy_ball + new_vyball)
+        new_x_robot = x_robot + 0.5 * self.dt * (v_robot + new_v_robot)
+
+        vlim = 20
+        new_vxball = new_vxball.clamp(min=-vlim, max=vlim)
+        new_vyball = new_vyball.clamp(min=-vlim, max=vlim)
+        new_v_robot = new_v_robot.clamp(min=-vlim, max=vlim)
+
+        next_state = torch.cat((new_x_robot, new_xball, new_yball, new_v_robot, new_vxball, new_vyball), 1)
+
+        return next_state
 
     def forward(self, state, action):
         """
@@ -222,44 +292,7 @@ class BallDynamics(BaseDynamics):
         :return:
         """
         if self.mode == "MPC":
-            # Preprocess variables
-            x_robot = state[:, 0].view(-1, 1)
-            xball = state[:, 1].view(-1, 1)
-            yball = state[:, 2].view(-1, 1)
-            # x_dot == v_cart
-            v_robot = state[:, 3].view(-1, 1)
-            vx_ball = state[:, 4].view(-1, 1)
-            vy_ball = state[:, 5].view(-1, 1)
 
-            g = self.g
-
-            # Clamp action magnitude just like it is clamped on complex object environment
-            force = self.gear * action.clamp(min=-1, max=1)
-
-            # Do dynamics for freely falling ball under gravity
-            # Acceleration of robot
-            robot_acc = self.robot_mass / force
-
-            ball_yacc = -g
-            ball_xacc = 0.0
-
-            # Fill-out new values
-            new_vxball = vx_ball + self.dt * ball_xacc
-            new_vyball = vy_ball + self.dt * ball_yacc
-            new_v_robot = v_robot + self.dt * robot_acc
-
-            new_xball = xball + 0.5 * self.dt * (vx_ball + new_vxball)
-            new_yball = yball + 0.5 * self.dt * (vy_ball + new_vyball)
-            new_x_robot = x_robot + 0.5 * self.dt * (v_robot + new_v_robot)
-
-            vlim = 20
-            new_vxball = new_vxball.clamp(min=-vlim, max=vlim)
-            new_vyball = new_vyball.clamp(min=-vlim, max=vlim)
-            new_v_robot = new_v_robot.clamp(min=-vlim, max=vlim)
-
-            next_state = torch.cat((new_x_robot, new_xball, new_yball, new_v_robot, new_vxball, new_vyball), 1)
-
-            return next_state
 
 
 

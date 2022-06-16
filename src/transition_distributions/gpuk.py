@@ -17,15 +17,15 @@ class GPUnscentedKalman(HeuristicUnscentedKalman):
         # Clone transition
         self.nominal_transition = copy.deepcopy(self.transition)
 
-        self.transition = GPDynamics(self.config.state_dimension + self.config.action_dimension,
-                                     self.config.state_dimension, device=self.config.device,
+        self.transition = GPDynamics(self.config.state_dim + self.config.action_dim,
+                                     self.config.state_dim, device=self.config.device,
                                      nominal_dynamics=self.nominal_transition)
 
         self.transition = self.transition.to(device=self.config.device)
 
         # We make R a trainable parameter
         self.z_logvar = torch.nn.Parameter(
-            torch.log(self.config.emission_noise * torch.ones(self.config.observation_dimension, device=self.config.device)),
+            torch.log(self.config.emission_noise * torch.ones(self.config.obs_dim, device=self.config.device)),
             requires_grad=False)
 
         self.trained = False
@@ -35,25 +35,25 @@ class GPUnscentedKalman(HeuristicUnscentedKalman):
 
     def reset_model(self):
         self.beta = self.beta_init
-        self.ukf = UnscentedKalmanFilter(self.config.state_dimension, self.config.observation_dimension,
-                                         self.config.action_dimension, self.Q, self.R, self.config.device)
+        self.ukf = UnscentedKalmanFilter(self.config.state_dim, self.config.obs_dim,
+                                         self.config.action_dim, self.Q, self.R, self.config.device)
 
-        self.transition = GPDynamics(self.config.state_dimension + self.config.action_dimension,
-                                     self.config.state_dimension, device=self.config.device,
+        self.transition = GPDynamics(self.config.state_dim + self.config.action_dim,
+                                     self.config.state_dim, device=self.config.device,
                                      nominal_dynamics=self.nominal_transition)
 
         self.transition = self.transition.to(device=self.config.device)
 
         # We make R a trainable parameter
         self.z_logvar = torch.nn.Parameter(
-            torch.log(self.config.emission_noise * torch.ones(self.config.observation_dimension, device=self.config.device)),
+            torch.log(self.config.emission_noise * torch.ones(self.config.obs_dim, device=self.config.device)),
             requires_grad=True)
 
         self.trained = False
         self.max_std = 0.0
 
     def sample_dynamics(self, state, action, do_mean=True):
-        x = state[:, :self.config.state_dimension]
+        x = state[:, :self.config.state_dim]
         if self.trained:
             px = self.transition(x, action)
             if do_mean:
@@ -83,10 +83,10 @@ class GPUnscentedKalman(HeuristicUnscentedKalman):
         #self.reset_model()
         # Change to use GPUKF instead of standard UKF
         if not self.trained:
-            self.ukf = GPUnscentedKalmanFilter(self.config.state_dimension, self.config.observation_dimension,
-                                                                              self.config.action_dimension,
-                                                                              self.config.param_dimension,
-                                                                              self.Q, self.R, self.config.device)
+            self.ukf = GPUnscentedKalmanFilter(self.config.state_dim, self.config.obs_dim,
+                                               self.config.action_dim,
+                                               self.config.param_dim,
+                                               self.Q, self.R, self.config.device)
 
         # The train_on_episode of base class HUK performs sys-id
         if self.config.fit_params_episodic:
@@ -113,10 +113,10 @@ class GPUnscentedKalman(HeuristicUnscentedKalman):
 
         # TODO currently for no angles - could make general for no. of angles in state
         # Initial x0
-        x0_mu = torch.nn.Parameter(torch.zeros(N, self.config.state_dimension,
+        x0_mu = torch.nn.Parameter(torch.zeros(N, self.config.state_dim,
                                                device=self.config.device))
 
-        x0_logvar = torch.nn.Parameter(torch.log(1. * torch.ones(N, self.config.state_dimension, device=self.config.device)))
+        x0_logvar = torch.nn.Parameter(torch.log(1. * torch.ones(N, self.config.state_dim, device=self.config.device)))
 
         # Distribution over observations
         self.transition.train()
@@ -165,7 +165,7 @@ class GPUnscentedKalman(HeuristicUnscentedKalman):
                 #x_mu, x_sigma = angular_transform(x_mu, x_sigma, 1)
 
                 # Perform update on initial observation
-                z0 = z[:, :, 0].view(-1, self.config.observation_dimension)
+                z0 = z[:, :, 0].view(-1, self.config.obs_dim)
                 x_mu, x_sigma = self.update(z0, x_mu, x_sigma)
 
                 # Sample initial state
@@ -180,9 +180,9 @@ class GPUnscentedKalman(HeuristicUnscentedKalman):
                 for t in range(T-1):
                     ut = u_batch[:, t].repeat(self.config.online_samples, 1, 1).view(self.config.online_samples * B, -1)
                     u_overshoot = u_batch[:, t:t+self.config.overshoot_d].repeat(self.config.online_samples, 1, 1, 1)
-                    u_overshoot = u_overshoot.view(B * self.config.online_samples, -1, self.config.action_dimension)
+                    u_overshoot = u_overshoot.view(B * self.config.online_samples, -1, self.config.action_dim)
 
-                    zt = z[:, :, t+1].view(-1, self.config.observation_dimension)
+                    zt = z[:, :, t+1].view(-1, self.config.obs_dim)
 
                     # Predictive distributions -- with overshooting
                     for to in range(u_overshoot.size(1)):
@@ -260,12 +260,12 @@ class GPUnscentedKalman(HeuristicUnscentedKalman):
             print(np.mean(z_std.detach().cpu().numpy()))
             print(np.max(std))
             print(np.max(z_std.detach().cpu().numpy()))
-            print(self.transition(torch.randn(1000, self.config.state_dimension, device=z_mu.device),
-                                  0.1*torch.randn(1000, 6, device=z_mu.device)).stddev.sum(dim=1).max())
-            print(self.transition(torch.randn(1000, self.config.state_dimension, device=z_mu.device),
-                                  0.1*torch.randn(1000, 6, device=z_mu.device)).stddev.sum(dim=1).mean())
-            print(self.transition(torch.randn(1000, self.config.state_dimension, device=z_mu.device),
-                                  0.1*torch.randn(1000, 6, device=z_mu.device)).stddev.sum(dim=1).min())
+            print(self.transition(torch.randn(1000, self.config.state_dim, device=z_mu.device),
+                                  0.1 * torch.randn(1000, 6, device=z_mu.device)).stddev.sum(dim=1).max())
+            print(self.transition(torch.randn(1000, self.config.state_dim, device=z_mu.device),
+                                  0.1 * torch.randn(1000, 6, device=z_mu.device)).stddev.sum(dim=1).mean())
+            print(self.transition(torch.randn(1000, self.config.state_dim, device=z_mu.device),
+                                  0.1 * torch.randn(1000, 6, device=z_mu.device)).stddev.sum(dim=1).min())
 
             #for name, param in self.transition.model.named_parameters():
             #    print(name, param)
@@ -287,28 +287,28 @@ class GPUnscentedKalman(HeuristicUnscentedKalman):
                                                               1, 1).view(self.config.online_samples, -1))
 
             # Sample
-            #z = z_normal.rsample(sample_shape=(self.config.online_samples,)).view(1, -1, self.config.observation_dimension)
-            z = z_mu.view(1, -1, self.config.observation_dimension)
+            #z = z_normal.rsample(sample_shape=(self.config.online_samples,)).view(1, -1, self.config.obs_dim)
+            z = z_mu.view(1, -1, self.config.obs_dim)
             p = z[:, :, :3]
             q = z[:, :, 3:]
             z = torch.cat((p, q / torch.norm(q, dim=2, keepdim=True)), dim=2)
 
             #torch.norm(z[:, :, 3:], dim=2))
             # Perform update on initial observation
-            z0 = z[:, 0].view(-1, self.config.observation_dimension)
+            z0 = z[:, 0].view(-1, self.config.obs_dim)
             x_mu, x_sigma = self.update(z0, x_mu, x_sigma)
             # Sample initial state
             qx = MultivariateNormal(x_mu, x_sigma)
             x = qx.mean
             filter_mu.append(x)
             T = z.size(1)
-            uu = u.view(1, -1, self.config.action_dimension)
+            uu = u.view(1, -1, self.config.action_dim)
             for t in range(T - 1):
                 ut = uu[:, t].repeat(self.config.online_samples, 1, 1).view(self.config.online_samples, -1)
                 u_overshoot = uu[:, t:t + self.config.overshoot_d].repeat(self.config.online_samples, 1, 1, 1)
-                u_overshoot = u_overshoot.view(self.config.online_samples, -1, self.config.action_dimension)
+                u_overshoot = u_overshoot.view(self.config.online_samples, -1, self.config.action_dim)
 
-                zt = z[:, t + 1].view(-1, self.config.observation_dimension)
+                zt = z[:, t + 1].view(-1, self.config.obs_dim)
 
                 # Predictive distributions -- with overshooting
                 for to in range(u_overshoot.size(1)):
@@ -328,8 +328,8 @@ class GPUnscentedKalman(HeuristicUnscentedKalman):
                 filter_mu.append(x)
 
             import matplotlib.pyplot as plt
-            zz_mu = z.detach().cpu().view(-1, self.config.observation_dimension).numpy()
-            zz = z_std.detach().cpu().view(-1, self.config.observation_dimension).numpy()
+            zz_mu = z.detach().cpu().view(-1, self.config.obs_dim).numpy()
+            zz = z_std.detach().cpu().view(-1, self.config.obs_dim).numpy()
             filter_mu = torch.stack(filter_mu, dim=1).detach().cpu().numpy()[0]
             std = torch.stack([px.stddev.detach().cpu() for px in predictive_distributions], dim=1).numpy()[0]
             mu = torch.stack([px.mean.detach().cpu() for px in predictive_distributions], dim=1).numpy()[0]

@@ -28,7 +28,7 @@ class EncoderEnsemble(nn.Module):
 
         self.encoder = nn.ModuleList([])
         for i in range(self.config.num_ensembles):
-            self.encoder.extend([Encoder(label_dim=self.config.observation_dimension, img_channels=3 * self.nframes)])
+            self.encoder.extend([Encoder(label_dim=self.config.obs_dim, img_channels=3 * self.nframes)])
 
         # Load model
         # Have to load model before configuring GP stuff for state dimension stuff
@@ -55,7 +55,7 @@ class EncoderEnsemble(nn.Module):
         """
         :return: Number of outputs neural network has been trained to output a distribution over
         """
-        return self.config.observation_dimension
+        return self.config.obs_dim
 
     def get_n_ensembles(self) -> int:
         """
@@ -127,8 +127,8 @@ class EncoderEnsemble(nn.Module):
         :return: combined prediction as gaussian approximation to mixture of N_ensemble gaussians
         '''
         # print("Using combined estimates")
-        z_mu = z_mu.view(self.config.num_ensembles, -1, self.config.observation_dimension)
-        z_var = z_var.view(self.config.num_ensembles, -1, self.config.observation_dimension)
+        z_mu = z_mu.view(self.config.num_ensembles, -1, self.config.obs_dim)
+        z_var = z_var.view(self.config.num_ensembles, -1, self.config.obs_dim)
 
         z_mu_total = z_mu.mean(dim=0)
         if not (z_mu_total == z_mu_total).all():

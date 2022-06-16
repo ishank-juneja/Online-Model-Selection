@@ -33,8 +33,8 @@ class JTM(nn.Module):
         # Build dynamics list and infer attributes
         for idx in range(simp_mod_lib.nmodels):
             model_trans = simp_mod_lib[idx].trans_dist
-            nx_cur = model_trans.config.state_dimension
-            nu_cur = model_trans.config.action_dimension
+            nx_cur = model_trans.config.state_dim
+            nu_cur = model_trans.config.action_dim
             if self.nu is None:
                 self.nu = nu_cur
             elif self.nu != nu_cur:

@@ -144,3 +144,10 @@ class SimpModPerception(nn.Module):
         :return:
         """
         return self.encoder.config
+
+    def get_model_name(self):
+        """
+        Return the simple model name as a string
+        :return:
+        """
+        return self.encoder.simp_model

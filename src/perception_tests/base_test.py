@@ -184,11 +184,11 @@ class BaseVizTest(metaclass=ABCMeta):
         masked, conf, mu, stddev = self.model(frame)
 
         mu = mu.view(self.model.encoder.config.num_ensembles,
-                     self.model.encoder.config.observation_dimension)
+                     self.model.encoder.config.obs_dim)
         mu_np = mu.cpu().detach().numpy()
 
         stddev = stddev.view(self.model.encoder.config.num_ensembles,
-                             self.model.encoder.config.observation_dimension)
+                             self.model.encoder.config.obs_dim)
         stddev_np = stddev.cpu().detach().numpy()
 
         return masked, mu_np, stddev_np

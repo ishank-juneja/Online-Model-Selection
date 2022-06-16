@@ -57,7 +57,7 @@ class Trainer:
             # actions = action.to(device=self.config.device)
 
             N, T, _ = state.size()
-            true_z = state[:, :, :self.config.observation_dimension].view(1, N, T, -1)
+            true_z = state[:, :, :self.config.obs_dim].view(1, N, T, -1)
             elbo = 0
 
             if not self.model.test:
@@ -68,7 +68,7 @@ class Trainer:
 
             q_dist = Normal(z_mu, z_std)
 
-            encoder_loss = - (q_dist.log_prob(true_z.view(-1, T, self.config.observation_dimension)))
+            encoder_loss = - (q_dist.log_prob(true_z.view(-1, T, self.config.obs_dim)))
             encoder_loss = (encoder_loss.mean(dim=0) * N).sum()
             total_encoder_loss += encoder_loss
 

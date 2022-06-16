@@ -13,15 +13,10 @@ class SimpModBook:
     Attributes:
     1. Kinematic/dynamic/kinodynamic transition function (trans_fn)
     2. Object to query for current cost (cost_fn)
-    TODO: Emph. via code/comments that the filter-transition distribution
-     is the most important piece of the Book and most of the book keeping is in fact just happening
-     in self.trans with the Book only performing a few extra tasks like choosing the right cost function
-     given the task and model_name and providing a class that can be duplicated easily for every model to form the library
     3. A combined filter-transition distribution class (i.e. model p_z)
         example: (GPUKF, or UKF with hard-coded transition uncertainty scheme)
     4. A perception that maps the current observation to state and uncertainty phi(o_t) -> mu_y, Sigma_y
     """
-    # TODO: Add more init parameters when adding planning
     def __init__(self, simp_mod: str, device: str):
         """
         :param simp_mod: string of simple model name
@@ -42,8 +37,8 @@ class SimpModBook:
         self.cfg = self.perception.cfg()
 
         # State dimension used for keeping the book of model with name
-        # self.nstates = self.cfg.state_dimension + self.cfg.actuator_dimension
-        self.nstates = self.cfg.state_dimension
+        # self.nstates = self.cfg.state_dim + self.cfg.rob_dim
+        self.nstates = self.cfg.state_dim
 
         # Containers for current simple model related estimates on the books, add a dim. at axis=0 for batched pro.
         self.z_mu = torch.zeros(1, self.nstates, device=self.cfg.device)
@@ -82,8 +77,8 @@ class SimpModBook:
         Re-initialize simple model state
         :return:
         """
-        self.z_mu = torch.zeros(1, self.cfg.state_dimension, device=self.cfg.device)
-        self.z_sigma = self.cfg.prior_cov * torch.eye(self.cfg.state_dimension, device=self.cfg.device).unsqueeze(0)
+        self.z_mu = torch.zeros(1, self.cfg.state_dim, device=self.cfg.device)
+        self.z_sigma = self.cfg.prior_cov * torch.eye(self.cfg.state_dim, device=self.cfg.device).unsqueeze(0)
         return
 
     def clear_episode_lists(self):
@@ -114,7 +109,7 @@ class SimpModBook:
         return
 
     def state_dim(self) -> int:
-        return self.cfg.state_dimension
+        return self.cfg.state_dim
 
     def reset_episode(self, obs: np.ndarray):
         """

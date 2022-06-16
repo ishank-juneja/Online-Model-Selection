@@ -17,7 +17,7 @@ class UnscentedKalmanFilter:
         param R: Observation noise covariance
         param device: cpu/gpu name str to put params on
         """
-        # Prior mean should be of size (batch, state_size)
+        # Prior mean should be of size (batch, state_dim)
         self.state_dim = state_dim
         self.obs_dim = obs_dim
         self.control_dim = control_dim

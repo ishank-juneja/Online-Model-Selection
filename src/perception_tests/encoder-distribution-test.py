@@ -47,7 +47,7 @@ def main(args):
             for idx in range(len(obs)):
                 z_mu, _ = loaded_ensemble.encode_single_obs(obs[idx])
 
-                z_mu = z_mu.view(nmembers, config.observation_dimension)
+                z_mu = z_mu.view(nmembers, config.obs_dim)
                 mu_np = z_mu.cpu().detach().numpy()
 
                 print(mu_np)

@@ -18,8 +18,8 @@ class HeuristicUnscentedKalman(nn.Module):
 
         # Assemble emission model to implement y_t = Cz_t + \eps from LVSPC paper
         # - - - - - - - - - - -
-        self.emission = LinearEmission(state_dim=self.config.state_dimension,
-                                       observation_dim=self.config.observation_dimension,
+        self.emission = LinearEmission(state_dim=self.config.state_dim,
+                                       observation_dim=self.config.obs_dim,
                                        device=self.config.device)
         # - - - - - - - - - - -
 
@@ -28,10 +28,10 @@ class HeuristicUnscentedKalman(nn.Module):
         # Q (process noise/transition noise) and R (observation noise) matrices
         self.Q = torch.diag(self.config.transition_noise).to(self.config.device)
         # R implements the eps_t term in y_t = Cz_t + eps_t
-        self.R = self.config.emission_noise * torch.eye(self.config.observation_dimension, device=self.config.device)
-        self.filter = UnscentedKalmanFilter(state_dim=self.config.state_dimension,
-                                            obs_dim=self.config.observation_dimension,
-                                            control_dim=self.config.action_dimension,
+        self.R = self.config.emission_noise * torch.eye(self.config.obs_dim, device=self.config.device)
+        self.filter = UnscentedKalmanFilter(state_dim=self.config.state_dim,
+                                            obs_dim=self.config.obs_dim,
+                                            control_dim=self.config.action_dim,
                                             Q=self.Q,
                                             R=self.R,
                                             device=self.config.device)
