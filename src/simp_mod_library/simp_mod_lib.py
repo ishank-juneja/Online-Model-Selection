@@ -1,5 +1,6 @@
 import numpy as np
 from src.simp_mod_library.simp_mod_book import SimpModBook
+import torch
 from typing import List, Union
 
 
@@ -15,6 +16,8 @@ class SimpModLib:
         param model_names: List of names of simple models in library
         :param device: cpu/gpu
         """
+        self.device = device
+
         # Sort the model names lexicographically for deterministic indexing of books in lib.
         model_names.sort()
         # Have used setter ...
@@ -31,6 +34,13 @@ class SimpModLib:
 
         # List of available simple models, idx <-> str mapping is based on this list
         self.model_names = model_names
+
+        # - - - - - - - - - - - - - - - - -
+        # Learned params that are common to all models in the library
+        # TODO: Make sure the common robo_mass learned parameter is updated whenever the sys-id for any model is
+        #  performed in a traning sesh
+        self.rob_mass = torch.tensor(1.0, device=self.device)
+        # - - - - - - - - - - - - - - - - -
 
     def __getitem__(self, item: Union[int, str]) -> SimpModBook:
         if type(item) == int:

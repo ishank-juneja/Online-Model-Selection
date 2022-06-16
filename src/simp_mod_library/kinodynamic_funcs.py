@@ -6,22 +6,18 @@ import torch.nn as nn
 
 class BaseDynamics(nn.Module, metaclass=ABCMeta):
     """
-    Base class for defining the dynamics/kinematics of a simple-model that in turns acts like:
-    1. The exact transition function in the Heuristic Unscented Kalman (HUK) model
-    2. The nominal transition function hat{f} for the GP learned model (GPUK) model
+    Base class for simple model dynamics/kimematics
+    NB: There is no consideration for uncertainty in any transitions in the derived classes
     """
-    def __init__(self, device: str, log_normal_params: bool, mode: str):
+    def __init__(self, device: str, log_normal_params: bool):
         super(BaseDynamics, self).__init__()
         # Device on which data/compute sits
         self.device = device
         # Whether estimating sys-id parameters as log_normal values
         self.log_normal_params = log_normal_params
-        # Purpose for which using dynamics
-        #  Supported Options: filter, MPC
-        self.mode: str = mode
 
         # - - - - - - - - - - - - - - - - -
-        # Some parameters common to simple model transition functions
+        # Some numerical parameters (numbers) common to simple model transition functions
         # self.dt should be the same as env.frame_skip * env.dt for any of the complex environments
         # If using a sequence of frames to train simple model dynamics then below and env.frame_skip * env.dt of
         #  both the simple and complex model envs should be the same
@@ -33,7 +29,40 @@ class BaseDynamics(nn.Module, metaclass=ABCMeta):
         # The gear/force action amplification value for all environments
         #  Must be the same as gear attribute of actuator in complex environment xml
         self.gear = 40.0
+        # All velocities for mjco simulated problems are capped at 20m/s
+        self.vlim = 20
         # - - - - - - - - - - - - - - - - -
+
+    def forward(self, state, action):
+        """
+        Placeholder/template for propagating dynamics
+        :param state:
+        :param action:
+        :return:
+        """
+        raise NotImplementedError
+
+    def reset_params(self):
+        """
+        Placeholder/template for reset-ing learnable (sys-id-ed) dynamics parametrs
+        :return:
+        """
+        raise NotImplementedError
+
+    def set_params(self, params):
+        """
+        Placeholder/template for setting learnable (sys-id-ed) dynamics parametrs to new learned values
+        Call at the end of a sys-id iteration
+        :return:
+        """
+        raise NotImplementedError
+
+    def get_params(self):
+        """
+        Placeholder/template for getting the current learnable (sys-id-ed) dynamics parameters
+        :return:
+        """
+        raise NotImplementedError
 
     @classmethod
     def __new__(cls, *args, **kwargs):
@@ -54,64 +83,48 @@ class BaseDynamics(nn.Module, metaclass=ABCMeta):
         """
         return torch.exp(params)
 
-    def forward(self, state, action):
+    def propagate(self, var, var_dot):
         """
-        Propagate state and action via cartpole dynamics
-        :param state: Cartpole state definition: [x_cart (m), x_mass (m), y_mass (m), v_cart (m/s), theta_dot (rad/s)]
-        :param action: Force on cart in N
+        Propagate var to the next time step using var_dot
+        :param var:
+        :param var_dot:
         :return:
         """
-        if self.mode == 'filter':
-            return self.propagate_filter(state, action)
-        elif self.mode == 'MPC':
-            return self.propagate_mpc(state, action)
-        else:
-            raise NotImplementedError
-
-    def propagate_mpc(self, state, action):
-        """
-        Dynamics method invoked when instantiated under mode MPC
-        :param state:
-        :param action:
-        :return:
-        """
-        raise NotImplementedError
-
-    def propagate_filter(self, state, action):
-        """
-        Dynamics method invoked when instantiated under mode filter
-        :param state:
-        :param action:
-        :return:
-        """
-        raise NotImplementedError
+        new_var = var + var_dot * self.dt
+        return new_var
 
 
 class CartpoleDynamics(BaseDynamics):
-    def __init__(self, device: str = 'cuda:0', log_normal_params: bool = False, mode: str = "MPC"):
-        super(CartpoleDynamics, self).__init__(device=device, log_normal_params=log_normal_params, mode=mode)
-
-        # Doesn't make much difference so hard-coded to fixed value
-        self.linear_damping = torch.tensor(0.2, device=self.device)
-
-        # Unknown dynamics parameters defaults
-        self.cart_mass_def = torch.tensor(1.0, device=self.device)
-        self.pole_mass_def = torch.tensor(1.0, device=self.device)
-        self.angular_damping_def = torch.tensor(0.1, device=self.device)
-
-        # Default values that parameterize the dynamics of the system
-        self.cart_mass = self.cart_mass_def
-        self.pole_mass = self.pole_mass_def
-        self.angular_damping = self.angular_damping_def
+    """
+    The known closed form dynamics for Cartpole
+    # Sources
+    # https://ocw.mit.edu/courses/6-832-underactuated-robotics-spring-2009/72bc06c4dc73315bf49c28a81dc2b996_MIT6_832s09_read_ch03.pdf
+    # https://ocw.mit.edu/courses/6-832-underactuated-robotics-spring-2009/
+    """
+    def __init__(self, device: str = 'cuda:0', log_normal_params: bool = False):
+        super(CartpoleDynamics, self).__init__(device=device, log_normal_params=log_normal_params)
 
         # Number of states and actions in dynamics
-        self.nx = 5
+        self.nx = 6
         self.nu = 1
 
+        # Doesn't make much difference so hard-coded to fixed value, not learned
+        self.linear_damping = torch.tensor(0.2, device=self.device)
+
+        # Unknown cartpole dynamics parameters defaults as floats
+        self.pole_mass_def = 1.0
+        self.angular_damping_def = 0.1
+        self.rob_mass_def: float = 1.0
+
+        # Init all the learned dynamics params tensors to defaults
+        self.rob_mass = torch.tensor(self.rob_mass_def, device=self.device)
+        self.pole_mass = torch.tensor(self.pole_mass_def, device=self.device)
+        self.angular_damping = torch.tensor(self.angular_damping_def, device=self.device)
+
     def reset_params(self):
-        self.cart_mass = self.cart_mass_def
-        self.pole_mass = self.pole_mass_def
-        self.angular_damping = self.angular_damping_def
+        self.rob_mass = torch.tensor(self.rob_mass_def, device=self.device)
+        self.pole_mass = torch.tensor(self.pole_mass_def, device=self.device)
+        self.angular_damping = torch.tensor(self.angular_damping_def, device=self.device)
 
     def set_params(self, params):
         if self.log_normal_params:
@@ -126,47 +139,56 @@ class CartpoleDynamics(BaseDynamics):
             raise NotImplementedError("Non log normal params are not implemented for Cartpole")
 
         self.pole_mass = mp
-        self.cart_mass = mc
+        self.rob_mass = mc
         self.angular_damping = b1
 
     def get_params(self):
         if self.log_normal_params:
             mp = self.pole_mass.log()
-            mc = self.cart_mass.log()
+            mc = self.rob_mass.log()
             # The prior on b1 is 0.1 but for uniformity in the sys_id grad-descent optimizer
             #  we pretend to the outside world that the value is 10x so we can use the same optimization hparams
             b1 = (10 * self.angular_damping).log()
         else:
+            # TODO: Remove the non-log case if not being used so this goes away...
             raise NotImplementedError("Non log normal params are not implemented for Cartpole")
 
         return torch.stack((mp, mc, b1), dim=0)
 
-    def propagate_filter(self, state, action):
+    def forward(self, state, action):
         """
         Propagate state and action via cartpole dynamics
-        :param state: Cartpole state definition: [x_cart (m), x_mass (m), y_mass (m), v_cart (m/s), theta_dot (rad/s)]
+        :param state: [x_rob, dot{x}_rob (Formerly x_cart and v_cart), x_mass, y_mass, dot{x}_mass, dot{y}_mass]
         :param action: Force on cart in N
         :return:
         """
-        # Preprocess variables
-        x = state[:, 0].view(-1, 1)
-        xmass = state[:, 1].view(-1, 1)
-        ymass = state[:, 2].view(-1, 1)
-        # x_dot == v_cart
-        x_dot = state[:, 3].view(-1, 1)
-        # TODO: Replace by vxmass and vymass ?
-        theta_dot = state[:, 4].view(-1, 1)
+        # Preprocess variables and view them as 2D tensors (instead of just vectors)
+        x_rob = state[:, 0].view(-1, 1)
+        # x and y positions of mass
+        xmass = state[:, 2].view(-1, 1)
+        ymass = state[:, 3].view(-1, 1)
+        # x_rob_dot == v_cart == v_robot
+        x_rob_dot = state[:, 1].view(-1, 1)
+        # x and y velocities of mass
+        xmass_dot = state[:, 4].view(-1, 1)
+        ymass_dot = state[:, 5].view(-1, 1)
 
-        dx = xmass - x  # mass-cart x-distance
+        dx = xmass - x_rob  # mass-cart x_rob-distance
         # Setup such that acute angles are measured from downward pointing vertical
         dy = self.y_cart - ymass    # mass-cart y-distance
         theta = torch.atan2(dx, dy) # Pole angle from downward pointing direction
         sintheta = torch.sin(theta)
         costheta = torch.cos(theta)
-        l = (dx**2 + dy**2).sqrt()  # Pole-length
+        # Geom. length of the pole of the cartpole
+        l = (dx**2 + dy**2).sqrt()
+        # Compute angular velocity theta_dot from linear vel., l, and sin/cos thetas
+        #  Theta dot can be estimated separately from xmass_dot and ymass_dot
+        est_x = xmass_dot / (l * costheta)
+        est_y = ymass_dot / (l * sintheta)
+        theta_dot = (est_x + est_y) / 2
 
         mp = self.pole_mass
-        mc = self.cart_mass
+        mc = self.rob_mass  # Cart and robot are one and the same for the cartpole model
         b1 = self.angular_damping
         # Not sys-ided since less important
         b2 = self.linear_damping
@@ -177,49 +199,61 @@ class CartpoleDynamics(BaseDynamics):
         force = self.gear * action.clamp(min=-1, max=1)
 
         # Do dynamics
-        # Sources
-        # https://ocw.mit.edu/courses/6-832-underactuated-robotics-spring-2009/72bc06c4dc73315bf49c28a81dc2b996_MIT6_832s09_read_ch03.pdf
-        # https://ocw.mit.edu/courses/6-832-underactuated-robotics-spring-2009/
         tmp = l * (mc + mp * sintheta * sintheta)
-        # Acceleration of cart
-        xacc = (force * l + mp * l * sintheta * (l * theta_dot * theta_dot + g * costheta) +
-                costheta * b1 * theta_dot - l * b2 * x_dot) / tmp
+        # Acceleration of cart (point robot welded to cart)
+        x_rob_acc = (force * l + mp * l * sintheta * (l * theta_dot * theta_dot + g * costheta) +
+                     costheta * b1 * theta_dot - l * b2 * x_rob_dot) / tmp
 
         thetaacc = (-force * costheta -
                     mp * l * theta_dot * theta_dot * sintheta * costheta -
-                    (mc + mp) * g * sintheta + b2 * x_dot * costheta - (mc + mp) * b1 * theta_dot) / tmp
+                    (mc + mp) * g * sintheta + b2 * x_rob_dot * costheta - (mc + mp) * b1 * theta_dot) / tmp
 
-        # Fill-out new values
-        new_x_dot = x_dot + self.dt * xacc
-        new_theta_dot = theta_dot + self.dt * thetaacc
+        # Propagate all the state variables using the qty and its derivative
+        new_x_rob_dot = self.propagate(x_rob_dot, x_rob_acc)
+        new_theta_dot = self.propagate(theta_dot, thetaacc)
+        # The derivative for the static qts is averaged between cur and next
+        new_x_rob = self.propagate(x_rob, 0.5 * (x_rob_dot + new_x_rob_dot))
+        new_theta = self.propagate(x_rob, 0.5 * (theta_dot + new_theta_dot))
 
-        new_x = x + 0.5 * self.dt * (x_dot + new_x_dot)
-        theta = theta + 0.5 * self.dt * (theta_dot + new_theta_dot)
+        # Cache trig functions of new theta
+        new_sintheta = torch.sin(new_theta)
+        new_costheta = torch.cos(new_theta)
 
-        new_xmass = new_x + l * torch.sin(theta)
-        new_ymass = -l * torch.cos(theta)
+        # New mass coordinates
+        new_xmass = new_x_rob + l * new_sintheta
+        new_ymass = -l * new_costheta
 
-        vlim = 20
-        new_theta_dot = new_theta_dot.clamp(min=-vlim, max=vlim)
-        new_x_dot = new_x_dot.clamp(min=-vlim, max=vlim)
+        vlim = self.vlim
+        new_theta_dot = new_theta_dot.clamp(min=vlim, max=vlim)
+        new_x_rob_dot = new_x_rob_dot.clamp(min=vlim, max=vlim)
 
-        next_state = torch.cat((new_x, new_xmass, new_ymass, new_x_dot,  new_theta_dot), 1)
+        # Use computed theta_dot to get estimates for next dot_{x/y}_mass
+        new_dot_xmass = l * new_costheta * new_theta_dot
+        new_dot_ymass = l * new_sintheta * new_theta_dot
 
+        next_state = torch.cat((new_x_rob, new_x_rob_dot, new_xmass, new_ymass, new_dot_xmass, new_dot_ymass), dim=1)
         return next_state
 
 
 class BallDynamics(BaseDynamics):
-    def __init__(self, device: str = 'cuda:0', log_normal_params: bool = False, mode: str = "MPC"):
-        super(BallDynamics, self).__init__(device=device, log_normal_params=log_normal_params, mode=mode)
+    """
+    Known closed form dynamics for a freely falling ball
+    Freely falling ball includes a point-robot (attached to) an unknown mass
+    """
+    def __init__(self, device: str = 'cuda:0', log_normal_params: bool = False):
+        super(BallDynamics, self).__init__(device=device, log_normal_params=log_normal_params)
+
+        # Number of states and actions in dynamics
+        self.nx = 6
+        self.nu = 1
 
         # Unknown dynamics parameters defaults
-        self.robot_mass_def = torch.tensor(1.0, device=self.device)
-
+        self.rob_mass_def = 1.0
         # Default values that parameterize the dynamics of the system
-        self.robot_mass = self.robot_mass_def
+        self.rob_mass = torch.tensor(self.rob_mass_def, device=self.device)
 
     def reset_params(self):
-        self.robot_mass = self.robot_mass_def
+        self.rob_mass = torch.tensor(self.rob_mass_def, device=self.device)
 
     def set_params(self, params):
         if self.log_normal_params:
@@ -227,8 +261,7 @@ class BallDynamics(BaseDynamics):
             m_robot = transformed[0]
         else:
             raise NotImplementedError("Non log normal params are not implemented for Ball")
-
-        self.robot_mass = m_robot
+        self.rob_mass = m_robot
 
     def get_params(self):
         if self.log_normal_params:
@@ -237,19 +270,20 @@ class BallDynamics(BaseDynamics):
             raise NotImplementedError("Non log normal params are not implemented for Cartpole")
         return torch.stack((m_robot,), dim=0)
 
-    def propagate_MPC(self, state, action):
+    def forward(self, state, action):
         """
-        Version of forward when using full dynamics including actuator kinematics/dynamics for planning
-        :param state:
-        :param action:
+        Propagate state and action via freely-falling ball dynamics
+        :param state: [x_rob, dot{x}_rob, x_ball, y_ball, dot{x}_ball, dot{y}_ball]
+        :param action: Force on point-robot in N
         :return:
         """
-        # Preprocess variables
-        x_robot = state[:, 0].view(-1, 1)
-        xball = state[:, 1].view(-1, 1)
-        yball = state[:, 2].view(-1, 1)
-        # x_dot == v_cart
-        v_robot = state[:, 3].view(-1, 1)
+        # Preprocess variables and view them as 2D tensors (instead of just vectors)
+        x_rob = state[:, 0].view(-1, 1)
+        x_rob_dot = state[:, 1].view(-1, 1)
+
+        xball = state[:, 2].view(-1, 1)
+        yball = state[:, 3].view(-1, 1)
+
         vx_ball = state[:, 4].view(-1, 1)
         vy_ball = state[:, 5].view(-1, 1)
 
@@ -260,40 +294,30 @@ class BallDynamics(BaseDynamics):
 
         # Do dynamics for freely falling ball under gravity
         # Acceleration of robot
-        robot_acc = self.robot_mass / force
+        robot_acc = self.rob_mass / force
 
         ball_yacc = -g
         ball_xacc = 0.0
 
         # Fill-out new values
-        new_vxball = vx_ball + self.dt * ball_xacc
-        new_vyball = vy_ball + self.dt * ball_yacc
-        new_v_robot = v_robot + self.dt * robot_acc
+        # 1st order terms
+        new_vxball = self.propagate(vx_ball, ball_xacc)
+        new_vyball = self.propagate(vy_ball, ball_yacc)
+        new_v_rob = self.propagate(x_rob_dot, robot_acc)
+        # 0 order terms with derivative average of old and new values
+        new_xball = self.propagate(xball, 0.5 * (vx_ball + new_vxball))
+        new_yball = self.propagate(yball, 0.5 * (vy_ball + new_vyball))
+        new_x_rob = self.propagate(x_rob, 0.5 * (x_rob_dot + new_v_rob))
 
-        new_xball = xball + 0.5 * self.dt * (vx_ball + new_vxball)
-        new_yball = yball + 0.5 * self.dt * (vy_ball + new_vyball)
-        new_x_robot = x_robot + 0.5 * self.dt * (v_robot + new_v_robot)
-
-        vlim = 20
+        vlim = self.vlim
         new_vxball = new_vxball.clamp(min=-vlim, max=vlim)
         new_vyball = new_vyball.clamp(min=-vlim, max=vlim)
-        new_v_robot = new_v_robot.clamp(min=-vlim, max=vlim)
+        new_v_rob = new_v_rob.clamp(min=-vlim, max=vlim)
 
-        next_state = torch.cat((new_x_robot, new_xball, new_yball, new_v_robot, new_vxball, new_vyball), 1)
+        # Assemble new state by stacking individuals column-wise
+        next_state = torch.cat((new_x_rob, new_v_rob, new_xball, new_yball, new_vxball, new_vyball), dim=1)
 
         return next_state
-
-    def forward(self, state, action):
-        """
-        Propagate state and action via freely falling ball dynamics
-        :param state: Ball state definition: [x_robot(m), x_ball (m), x_ball (m),
-                                                v_robot (m), vx_ball (m), vy_ball (m/s)]
-        :param action: Simply moves the cart around as if there were no tension in the rope (i.e. no effect on cup)
-        :return:
-        """
-        if self.mode == "MPC":
-
-
 
 
 if __name__ == '__main__':
