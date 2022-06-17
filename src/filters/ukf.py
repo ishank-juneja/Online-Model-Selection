@@ -33,7 +33,7 @@ class UnscentedKalmanFilter:
 
         self.device = device
 
-    def predict(self, hat_x_plus_prev, P_plus_prev, control, dynamics_fn, Q=None):
+    def predict(self, hat_x_plus_prev, P_plus_prev, control, rob_state, dynamics_fn, Q=None):
         """
         Notation used is different from paper and from ref link
         All params/callables here intended for batch inference with shape (B, n)
@@ -57,7 +57,10 @@ class UnscentedKalmanFilter:
 
         # Apply dynamics: Input is batch of sigma points: hat{x}^{+}_{i, k−1}]_{i=0}^{2n} and controls: u_{k-1}
         #  Output is a batch of: hat{x}^{-}_{k}
+        # Convert type 2 state to type 3 state to pass to dynamics function
         new_sigma_points = dynamics_fn(sigma_points, sigma_controls).view(-1, n_sigma, self.state_dim)
+
+        # Convert received type 3 back to type 2 to be consistent with filter
 
         # Get predicted next state hat{x}_{k}^{-}
         hat_x_min_k, cov = self.unscented_transform(new_sigma_points)
@@ -192,8 +195,8 @@ class MerweSigmaPoints:
         # Put sigma on cpu() due to the bug here
         #  https://discuss.pytorch.org/t/cuda-illegal-memory-access-when-using-batched-torch-cholesky/51624/13
         # Cholesky needed to find sqrt of cov matrices
-        L = torch.linalg.cholesky((self.lamb + self.n) * sigma.cpu()).to(self.device)
-        # L = torch.cholesky((self.lamb + self.n) * sigma)
+        # L = torch.linalg.cholesky((self.lamb + self.n) * sigma.cpu()).to(self.device)
+        L = torch.linalg.cholesky((self.lamb + self.n) * sigma)
 
         # Init list of sigma points with just the previous mean
         sigmas = [mu]

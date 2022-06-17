@@ -20,6 +20,10 @@ class KendamaAgent(BaseAgent):
         # Learn inter-model transitions
         self.learn_inter_model = False
 
+        # Indices of the gt state that are observable from the env
+        # Ex: For passing down the gt values of actuator related quantities
+        self.rob_gt_idx = [0, 11]
+
         # Actually make the agent based on the task specific params set in this class definition
         self.make_agent_for_task()
 

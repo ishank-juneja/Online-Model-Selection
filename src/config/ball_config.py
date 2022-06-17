@@ -43,6 +43,8 @@ class Config(CommonEncConfig):
                 self.obs_dim = 2
             else:
                 self.obs_dim = 4
+            # Mask to remove things coming from perception for which GT is available
+            self.obs_mask = None
         # Training hparams
         self.epochs = 80
         self.batch_size = 64
@@ -55,7 +57,6 @@ class Config(CommonEncConfig):
 
         # - - - - - - - - - - - - - - - - - - - -
         # Filtering related
-        # Needed for both training and assembling encoder
         # Dimension of filter-compatible state
         self.state_dim = 4
         # Variance settings

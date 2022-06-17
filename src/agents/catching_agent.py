@@ -5,7 +5,7 @@ from typing import List
 # TODO: Bring in sync with functionality in ConkersAgent
 class CatchingAgent(BaseAgent):
     def __init__(self, smodel_list: List[str], device: str = 'cuda:0'):
-        super(CatchingAgent, self).__init__(smodel_list=smodel_list, device=device)
+        super(CatchingAgent, self).__init__(device=device)
 
         # Set task specific parameters here
         self.env_name: str = 'Catching-v0'
@@ -21,10 +21,10 @@ class CatchingAgent(BaseAgent):
         self.learn_inter_model = False
 
         # Actually make the agent based on the task specific params set in this class definition
-        self.make_agent_for_task()
+        self.make_agent_for_task(smodel_list=smodel_list)
 
         # Indices of the gt state that are observable from the env
         # Ex: For passing down the gt values of actuator related quantities
-        self.obs_gt_idx = [0, 8]
+        self.rob_gt_idx = [0, 8]
 
 

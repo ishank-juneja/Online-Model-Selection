@@ -1,10 +1,10 @@
 from abc import ABCMeta
 import gym
-import torch
-
 import gym_cenvs
 import numpy as np
+import logging
 from src.simp_mod_library.simp_mod_lib import SimpModLib
+import torch
 from typing import List
 
 
@@ -12,7 +12,7 @@ class BaseAgent(metaclass=ABCMeta):
     """
     Base class for constructing agents that control the complex object using passed Simple Model Library
     """
-    def __init__(self, smodel_list: List[str], device: str = 'cuda:0'):
+    def __init__(self, device: str = 'cuda:0'):
         # String that is set in derived class
         self.env_name: str = None
         # Ref to step-able mujoco-gym environment
@@ -25,12 +25,12 @@ class BaseAgent(metaclass=ABCMeta):
         self.action_dimension: int = None
         # Number of times we repeat the same action (action repetition, task specific)
         self.actions_per_loop: int = None
-        # Dimensionality of ground struth state for an env
-        self.state_dimension: int = None
+        # Dimensionality of ground truth state for an env
+        self.gt_state_dim: int = None
         # Episode horizon set for task
         self.episode_T: int = None
 
-        self.model_lib = SimpModLib(smodel_list, device)
+        self.model_lib: SimpModLib = None
 
         # Keys for the online collected dataset. gt = Ground Truth, ep = episode,
         # gt_frame = raw unprocessed frame
@@ -51,9 +51,12 @@ class BaseAgent(metaclass=ABCMeta):
         self.gt_state: torch.Tensor = None
 
         # Special indices within gt_state that are passed down to SML
-        self.obs_gt_idx: List[int] = None
+        self.rob_gt_idx: List[int] = None
 
-    def make_agent_for_task(self):
+        # Parameter priors that are part of agent configuration
+        self.rob_mass: float = 1.0
+
+    def make_agent_for_task(self, smodel_list: List[str]):
         """
         Invoked after task specific params have been set in derived class
         :return:
@@ -64,7 +67,10 @@ class BaseAgent(metaclass=ABCMeta):
 
         # TODO: Check consistency of action dimension with simple model lib here
 
-        self.gt_state = torch.zeros(self.state_dimension, dtype=torch.float32)
+        self.gt_state = torch.zeros(self.gt_state_dim, dtype=torch.float32)
+
+        # Initialize SML
+        self.model_lib = SimpModLib(model_names=smodel_list, rob_mass=self.rob_mass, device=self.device)
 
         return
 
@@ -85,7 +91,7 @@ class BaseAgent(metaclass=ABCMeta):
          While doing an episode, there are no parameter updates, only the datasets are appended
         :return:
         """
-        # Ensure no parameter updates (also less memory since no grads are tracked)
+        # no grad ensures no parameter updates (also less memory since no grads are tracked)
         with torch.no_grad():
             while True:
                 # Clear episode specific state
@@ -122,13 +128,17 @@ class BaseAgent(metaclass=ABCMeta):
 
         # TODO: Loop over possibly longer sequence of actions instead of single action
 
-        # Invoke predict method of underlying simple models
-        self.model_lib.predict(actions)
-        # Take the action in world and get observation
+        # Take the planned action in world and get observation
         obs, rew, done, info = self.env.step(actions[0, 0])
-
+        # Extract ground truth state
         gt_state = info['state']
         total_reward += rew
+
+        # Update the robot's GT state
+        self.model_lib.rob_state = gt_state[self.rob_gt_idx]
+
+        # Invoke predict method of underlying simple models
+        self.model_lib.predict(actions)
 
         # Get simple model state and uncertainty estimates for all models in lib after observation update
         z_mu_list = self.model_lib.update(obs)
@@ -163,7 +173,7 @@ class BaseAgent(metaclass=ABCMeta):
         # Append GT state of complex environment to online collected data
         self.episode_data['gt_state_history'].append(gt_state)
 
-        # TODO: Reset cost functions once planning is added back
+        logging.info("Reset episode done for {0} agent".format(self.env_name.capitalize()))
 
     def reset_trial(self):
         """

@@ -42,9 +42,10 @@ class HeuristicUnscentedKalman(nn.Module):
         self.saved_data = None
         self.start = 0
 
-    def predict(self, action, hat_mu_z_prev, sigma_z_prev, transition=None, Q=None):
+    def predict(self, action, rob_state, hat_mu_z_prev, sigma_z_prev, transition=None, Q=None):
         """
         :param action: Action taken to prop. state
+        :param rob_state: GT Robot state for dynamics
         :param hat_mu_z_prev: Best estimate of state at the end of the last time step
         :param sigma_z_prev: Best estimate of uncertainty until the last time step
         :param transition: Dynamics relationship in case different from the one HUK was inited with

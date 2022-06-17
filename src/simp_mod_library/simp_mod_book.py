@@ -22,7 +22,7 @@ class SimpModBook:
         :param simp_mod: string of simple model name
         :param device: string for device to put tensors on: 'cpu', 'cuda:0' etc.
         """
-        # Name of the simple model keep-ed by this book
+        # Name of the simple model kept by this book
         self.name = simp_mod
 
         # Device to put data structures associated with this book on
@@ -32,6 +32,7 @@ class SimpModBook:
         per_config = PerceptionConfig()
         # Load in perception object
         self.perception = SimpModPerception(**per_config[self.name])
+        logging.info("Loaded perception for {0} model".format(self.name.capitalize()))
 
         # Config for simple model book-keeping is identical to config from perception
         self.cfg = self.perception.cfg()
@@ -45,9 +46,7 @@ class SimpModBook:
         self.z_sigma = self.cfg.prior_cov * torch.eye(self.nstates, device=self.cfg.device).unsqueeze(0)
 
         self.trans_dist = HeuristicUnscentedKalman(self.cfg)
-
-        # States and actions
-        logging.info("Initialized struct and perception for {0} model".format(simp_mod))
+        logging.info("Created Transition Model for {0} model".format(self.name.capitalize()))
 
         # Keys for the online collected dataset. gt = Ground Truth, ep = episode
         self.data_keys = ["mu_y_history",
@@ -86,13 +85,14 @@ class SimpModBook:
         for data_key in self.data_keys:
             self.episode_data[data_key] = []
 
-    def predict(self, action):
+    def predict(self, action, rob_state):
         """
         Invoke predict of trans_dist
         :param action:
+        :param rob_state: Needed to make predictions about next state
         :return:
         """
-        self.z_mu, self.z_sigma = self.trans_dist.predict(action, self.z_mu, self.z_sigma)
+        self.z_mu, self.z_sigma = self.trans_dist.predict(action, rob_state, self.z_mu, self.z_sigma)
         return
 
     def observation_update(self, obs: np.ndarray):
@@ -102,10 +102,23 @@ class SimpModBook:
         :return:
         """
         # Encode single image
+        #  mu_y and sigma_y here are type 1 states
         masked, conf, mu_y, sigma_y = self.perception(obs)
 
+        # Use a mask instead of re-training perception to ignore cart-state
+        obs_mask = self.cfg.obs_mask
+
+        if obs_mask is not None:
+            # Get pruned type 1 states
+            mu_y_pruned = mu_y[:, obs_mask]
+            sigma_y_pruned = sigma_y[:, obs_mask]
+        else:
+            # Get pruned type 1 states
+            mu_y_pruned = mu_y
+            sigma_y_pruned = sigma_y
+
         # Update belief in world
-        self.z_mu, self.z_sigma = self.trans_dist.update(mu_y, self.z_mu, self.z_sigma)
+        self.z_mu, self.z_sigma = self.trans_dist.update(mu_y_pruned, self.z_mu, self.z_sigma)
         return
 
     def state_dim(self) -> int:
@@ -134,3 +147,4 @@ class SimpModBook:
         self.trans_dist.transition.reset_params()
         # TODO: Increase the scope of the resets once planning etc. are added
 
+        logging.info("Hard reset book for {0} model".format(self.name.capitalize()))

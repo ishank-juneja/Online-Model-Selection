@@ -41,8 +41,12 @@ class Config(CommonEncConfig):
             # consecutive simple model frames state encoder is trained with
             if self.nframes == 1:
                 self.obs_dim = 3
+                # Mask to remove things coming from perception for which GT is available
+                self.obs_mask = [1, 2]
             else:
                 self.obs_dim = 6
+                # Mask to remove things coming from perception for which GT is available
+                self.obs_mask = [1, 2, 4, 5]
         # Training hparams
         self.epochs = 80
         self.batch_size = 64
