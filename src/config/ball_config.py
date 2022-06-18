@@ -57,6 +57,7 @@ class Config(CommonEncConfig):
 
         # - - - - - - - - - - - - - - - - - - - -
         # Filtering related
+        self.filter_obs_dim = self.obs_dim
         # Dimension of filter-compatible state
         self.state_dim = 4
         # Variance settings

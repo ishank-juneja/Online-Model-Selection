@@ -35,6 +35,7 @@ class Config(CommonEncConfig):
         # - - - - - - - - - - - - - - - - - - - -
         # Perception related
         if data_folder is not None:
+            # TODO: Once choice of 1 frame / 2 frame is finalized remove this conditional stuff and its consequences
             # Number of observable states out of state_dims
             #  Refer to state returned by gym environment
             #  The quantities that are observable depend on the number of
@@ -47,6 +48,10 @@ class Config(CommonEncConfig):
                 self.obs_dim = 6
                 # Mask to remove things coming from perception for which GT is available
                 self.obs_mask = [1, 2, 4, 5]
+            # Infer the dimensions of the observations as seen by the filter
+            filter_obs_dim = len(self.obs_mask)
+        else:
+            filter_obs_dim = None
         # Training hparams
         self.epochs = 80
         self.batch_size = 64
@@ -59,6 +64,8 @@ class Config(CommonEncConfig):
 
         # - - - - - - - - - - - - - - - - - - - -
         # Filtering related
+        # Dimension of observations passed to filter
+        self.filter_obs_dim = filter_obs_dim
         # Needed for both training and assembling encoder
         # Dimension of filter-compatible state
         self.state_dim = 4

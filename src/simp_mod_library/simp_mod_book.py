@@ -44,6 +44,8 @@ class SimpModBook:
         # Containers for current simple model related estimates on the books, add a dim. at axis=0 for batched pro.
         self.z_mu = torch.zeros(1, self.nstates, device=self.cfg.device)
         self.z_sigma = self.cfg.prior_cov * torch.eye(self.nstates, device=self.cfg.device).unsqueeze(0)
+        # Set the uncertainty in rob states to 0
+        # self.cfg.prior_cov[:, :self.cfg.rob_dim, :self.cfg.rob_dim] = 0.0
 
         self.trans_dist = HeuristicUnscentedKalman(self.cfg)
         logging.info("Created Transition Model for {0} model".format(self.name.capitalize()))
@@ -71,9 +73,9 @@ class SimpModBook:
     def __repr__(self):
         return self.__str__()
 
-    def init_model_state(self):
+    def reset_model_state(self):
         """
-        Re-initialize simple model state
+        Reset simple model state
         :return:
         """
         self.z_mu = torch.zeros(1, self.cfg.state_dim, device=self.cfg.device)
@@ -132,7 +134,7 @@ class SimpModBook:
         :return:
         """
         # Reset state
-        self.init_model_state()
+        self.reset_model_state()
         # Clear any state built up over an episode for the transition distributions
         self.clear_episode_lists()
         # Infer the initial state for starting to plan
