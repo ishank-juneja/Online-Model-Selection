@@ -1,7 +1,7 @@
 import argparse
 import numpy as np
 from src.learned_models.ensemble import EncoderEnsemble
-from src.plotting import GIFmaker, SimpleModViz
+from src.plotting import GIFmaker, SMVOffline
 import torch
 
 
@@ -76,7 +76,7 @@ def main(args):
     encoder = EncoderEnsemble(model_name="model_cartpole_enc_2frame_Apr08_09-58-07", load_model=True)
     encoder.send_model_to_gpu()
 
-    viz = SimpleModViz(simp_model='cartpole')
+    viz = SMVOffline(simp_model='cartpole')
 
     gif_maker = GIFmaker()
 

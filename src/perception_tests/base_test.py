@@ -3,7 +3,7 @@ import glob
 import numpy as np
 import os
 from src.learned_models import SimpModPerception
-from src.plotting import SimpleModViz, GIFmaker
+from src.plotting import SMVOffline, GIFmaker
 from src.simp_mod_datasets import FramesHandler
 from src.utils import ResultDirManager
 import subprocess
@@ -42,7 +42,7 @@ class BaseVizTest(metaclass=ABCMeta):
         self.use_env = False
 
         # Visualizer object for running a test
-        self.viz = SimpleModViz(self.model.simp_model)
+        self.viz = SMVOffline(self.model.simp_model)
 
         # nframes per observation to visual_model
         self.nframes = self.model.get_nframes()

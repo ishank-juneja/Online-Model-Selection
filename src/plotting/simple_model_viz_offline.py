@@ -6,12 +6,12 @@ from typing import Callable, List
 STDDEV_SCALE = 1.0
 
 
-class SMZOffline(SimpleModViz):
+class SMVOffline(SimpleModViz):
     """
     Simple Model Viz functionality with methods for doing offline perception tests
     """
     def __init__(self, simp_model: str, vel_as_color: bool = False):
-        super(SMZOffline, self).__init__(simp_model, vel_as_color)
+        super(SMVOffline, self).__init__(simp_model, vel_as_color)
 
     @staticmethod
     def save_frames(frames: list, save_dir: str):

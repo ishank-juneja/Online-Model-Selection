@@ -2,7 +2,7 @@ import logging
 import numpy as np
 from src.config import PerceptionConfig
 from src.learned_models import SimpModPerception
-from src.plotting import SMZOffline
+from src.plotting import SMVOnline
 from src.transition_distributions import HeuristicUnscentedKalman
 import torch
 
@@ -71,7 +71,7 @@ class SimpModBook:
 
         # Simple Model visualization related
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        self.viz = SMZOffline(self.name)
+        self.viz = SMVOnline(self.name)
         self.viz.set_nframes(self.cfg.nframes)
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -105,9 +105,6 @@ class SimpModBook:
         """
         self.z_mu, self.z_sigma = self.trans_dist.predict(action, rob_state, self.z_mu, self.z_sigma)
         return
-
-    def viz_current_state(self):
-        self.viz.
 
     def observation_update(self, obs: np.ndarray):
         """

@@ -43,6 +43,7 @@ class BallCost(nn.Module):
 
     # TODO: Add something that checks for collisions based on distance between Ball and Cup
     def forward(self):
+        return 0.0
 
 
 class CartpoleTipCost(nn.Module):

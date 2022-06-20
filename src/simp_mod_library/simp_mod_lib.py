@@ -1,4 +1,5 @@
 import numpy as np
+from src.plotting import SimpModLibViz
 from src.simp_mod_library.simp_mod_book import SimpModBook
 import torch
 from typing import List, Union
@@ -58,6 +59,9 @@ class SimpModLib:
         self.rob_mass_float = rob_mass
         self.rob_mass = torch.tensor(self.rob_mass_float, device=self.device)   # Learnable version
         # - - - - - - - - - - - - - - - - -
+
+        # Object for visualizing things at the lib level
+        self.viz = SimpModLibViz(self.lib)
 
     def __str__(self):
         return "Library with simple models {0}".format(self.model_names)
