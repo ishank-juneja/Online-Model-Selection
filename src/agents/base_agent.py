@@ -121,7 +121,7 @@ class BaseAgent(metaclass=ABCMeta):
         # TODO: Change random actions to planned actions from controller
         # Random action for testing
         action = np.random.uniform(-1, 1)
-        actions = torch.tensor([[action]])
+        actions = torch.tensor([[action]], device=self.device)
 
         # Total reward seen so far
         total_reward = 0
@@ -129,13 +129,13 @@ class BaseAgent(metaclass=ABCMeta):
         # TODO: Loop over possibly longer sequence of actions instead of single action
 
         # Take the planned action in world and get observation
-        obs, rew, done, info = self.env.step(actions[0, 0])
+        obs, rew, done, info = self.env.step(action)
         # Extract ground truth state
         gt_state = info['state']
         total_reward += rew
 
         # Update the robot's GT state
-        self.model_lib.rob_state = gt_state[self.rob_gt_idx]
+        self.model_lib.rob_state = torch.from_numpy(gt_state[self.rob_gt_idx]).to(self.device)
 
         # Invoke predict method of underlying simple models
         self.model_lib.predict(actions)

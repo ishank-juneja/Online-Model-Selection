@@ -9,10 +9,11 @@ class HeuristicUnscentedKalman(nn.Module):
     Class definition for a state transition distribution with a hard-coded uncertainty heuristic
     Notation used is the one in the paper and different from the one in the UKF class def
     """
-    def __init__(self, config):
+    def __init__(self, config, smodel_name: str):
         super(HeuristicUnscentedKalman, self).__init__()
 
         self.config = config
+        self.name = smodel_name
 
         self.max_std = 0.1
 
@@ -25,20 +26,22 @@ class HeuristicUnscentedKalman(nn.Module):
         self.emission = LinearEmission(state_dim=self.config.state_dim,
                                        observation_dim=self.config.filter_obs_dim,
                                        device=self.config.device)
-        # - - - - - - - - - - -
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
         # Assemble Unscented Kalman filter
-        # - - - - - - - - - - -
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         # Q (process noise/transition noise) and R (observation noise) matrices
         self.Q = torch.diag(self.config.transition_noise).to(self.config.device)
         # R implements the eps_t term in y_t = Cz_t + eps_t
-        self.R = self.config.emission_noise * torch.eye(self.config.filter_obs_dim, device=self.config.device)
+        self.R = self.config.emission_noise * torch.eye(self.config.filter_obs_dim, device=self.config.device,
+                                                        dtype=torch.float64)
         self.filter = UnscentedKalmanFilter(state_dim=self.config.state_dim,
                                             obs_dim=self.config.filter_obs_dim,
                                             control_dim=self.config.action_dim,
                                             rob_dim=self.config.rob_dim,
                                             Q=self.Q,
                                             R=self.R,
+                                            smodel_name=self.name,
                                             device=self.config.device)
         # - - - - - - - - - - -
         self.transition = self.config.dynamics_class(device=self.config.device,
@@ -46,6 +49,12 @@ class HeuristicUnscentedKalman(nn.Module):
 
         self.saved_data = None
         self.start = 0
+
+    def __str__(self):
+        return "HUK for simple model {0}".format(self.name)
+
+    def __repr__(self):
+        return self.__str__()
 
     def predict(self, action, rob_state, hat_mu_z_prev, sigma_z_prev, transition=None, Q=None):
         """

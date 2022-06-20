@@ -16,7 +16,7 @@ class SimpleModel:
     def __init__(self, simp_model: str, seed: int = 0, twin: bool = False):
         """
         Initialize this wrapper but do not make the environment yet since multiple open environments not supported
-        :param long_name: Registered gym name of the environment: ex: MujocoCartpole-v0
+        :param simp_model: Registered gym name of the environment: ex: MujocoCartpole-v0
         :param seed: Random seed for making the model evolve in a deterministic manner
         :param twin: depracated paramter, indicates whether the model is making frames for itself or just ball masks
         for say cartpole/doublecartpole framesd

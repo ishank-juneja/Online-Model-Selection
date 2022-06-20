@@ -70,8 +70,8 @@ class LinearEmission(nn.Module):
         #  Assumes C is a block identity matrix with the last few state_dim - observation_dim dimensions being dropped
         # Example: state = [x, \dot{x}] and we have single frame observations then C = [1 0; 0 0] such that
         #
-        self.C = torch.cat((torch.eye(observation_dim),
-                            torch.zeros(observation_dim, state_dim - observation_dim)), dim=1).to(device=device)
+        self.C = torch.cat((torch.eye(observation_dim), torch.zeros(observation_dim, state_dim - observation_dim)),
+                           dim=1).to(device=device).double()
 
     def get_C(self):
         return self.C

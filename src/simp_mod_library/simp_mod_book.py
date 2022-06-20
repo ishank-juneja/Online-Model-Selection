@@ -2,6 +2,7 @@ import logging
 import numpy as np
 from src.config import PerceptionConfig
 from src.learned_models import SimpModPerception
+from src.plotting import SMZOffline
 from src.transition_distributions import HeuristicUnscentedKalman
 import torch
 
@@ -11,7 +12,7 @@ class SimpModBook:
     Class to encapsulate the attributes associated with a single simple model, Notation same as paper
     Collection of SimpModBooks is a SimpModLib
     Attributes:
-    1. Kinematic/dynamic/kinodynamic transition function (trans_fn)
+    1. Kinematic/dynamic/kino-dynamic transition function (trans_fn)
     2. Object to query for current cost (cost_fn)
     3. A combined filter-transition distribution class (i.e. model p_z)
         example: (GPUKF, or UKF with hard-coded transition uncertainty scheme)
@@ -42,12 +43,13 @@ class SimpModBook:
         self.nstates = self.cfg.state_dim
 
         # Containers for current simple model related estimates on the books, add a dim. at axis=0 for batched pro.
-        self.z_mu = torch.zeros(1, self.nstates, device=self.cfg.device)
-        self.z_sigma = self.cfg.prior_cov * torch.eye(self.nstates, device=self.cfg.device).unsqueeze(0)
+        self.z_mu = torch.zeros(1, self.nstates, device=self.cfg.device, dtype=torch.float64)
+        self.z_sigma = self.cfg.prior_cov * torch.eye(self.nstates, device=self.cfg.device,
+                                                      dtype=torch.float64).unsqueeze(0)
         # Set the uncertainty in rob states to 0
         # self.cfg.prior_cov[:, :self.cfg.rob_dim, :self.cfg.rob_dim] = 0.0
 
-        self.trans_dist = HeuristicUnscentedKalman(self.cfg)
+        self.trans_dist = HeuristicUnscentedKalman(self.cfg, smodel_name=self.name)
         logging.info("Created Transition Model for {0} model".format(self.name.capitalize()))
 
         # Keys for the online collected dataset. gt = Ground Truth, ep = episode
@@ -67,6 +69,12 @@ class SimpModBook:
         # Init dict entries with empty lists
         self.clear_episode_lists()
 
+        # Simple Model visualization related
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        self.viz = SMZOffline(self.name)
+        self.viz.set_nframes(self.cfg.nframes)
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
     def __str__(self):
         return "Book for simple model {0}".format(self.name)
 
@@ -78,8 +86,9 @@ class SimpModBook:
         Reset simple model state
         :return:
         """
-        self.z_mu = torch.zeros(1, self.cfg.state_dim, device=self.cfg.device)
-        self.z_sigma = self.cfg.prior_cov * torch.eye(self.cfg.state_dim, device=self.cfg.device).unsqueeze(0)
+        self.z_mu = torch.zeros(1, self.nstates, device=self.cfg.device, dtype=torch.float64)
+        self.z_sigma = self.cfg.prior_cov * torch.eye(self.nstates, device=self.cfg.device,
+                                                      dtype=torch.float64).unsqueeze(0)
         return
 
     def clear_episode_lists(self):
@@ -96,6 +105,9 @@ class SimpModBook:
         """
         self.z_mu, self.z_sigma = self.trans_dist.predict(action, rob_state, self.z_mu, self.z_sigma)
         return
+
+    def viz_current_state(self):
+        self.viz.
 
     def observation_update(self, obs: np.ndarray):
         """

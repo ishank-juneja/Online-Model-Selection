@@ -54,9 +54,9 @@ class SimpModLib:
 
         # - - - - - - - - - - - - - - - - -
         # Robot related params common to the books of all the models in the library
+        self.rob_state = torch.zeros(1, self.rob_dim, device=self.device)
         self.rob_mass_float = rob_mass
         self.rob_mass = torch.tensor(self.rob_mass_float, device=self.device)   # Learnable version
-        self.rob_state = torch.zeros(1, self.rob_dim, device=self.device)
         # - - - - - - - - - - - - - - - - -
 
     def __str__(self):
@@ -87,15 +87,21 @@ class SimpModLib:
     def nmodels(self, nmodels: int):
         self._nmodels = nmodels
 
-    def predict(self, action):
+    def predict(self, action, rob_state=None):
         """
         Run predict on the books of all models
         :param action:
+        :param rob_state: GT robot state passed to the methods, if none, then last set rob_state of lib used
         :return:
         """
+        # Infer batch size from action shape
+        B, _ = action.size()
+        # Use last set rob_state for lib if None
+        if rob_state is None:
+            rob_state = self.rob_state.repeat(1, B).view(-1, self.rob_dim)
         for model in self.model_names:
             # Send action and rob_state to models for letting them predict using their resp. dynamics
-            self.lib[model].predict(action, self.rob_state)
+            self.lib[model].predict(action, rob_state)
 
     def update(self, obs):
         """
