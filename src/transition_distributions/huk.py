@@ -36,6 +36,7 @@ class HeuristicUnscentedKalman(nn.Module):
         self.filter = UnscentedKalmanFilter(state_dim=self.config.state_dim,
                                             obs_dim=self.config.filter_obs_dim,
                                             control_dim=self.config.action_dim,
+                                            rob_dim=self.config.rob_dim,
                                             Q=self.Q,
                                             R=self.R,
                                             device=self.config.device)
@@ -60,7 +61,8 @@ class HeuristicUnscentedKalman(nn.Module):
         transition_fn = self.transition if transition is None else transition
         # Perform the predict/propagate step of the filter
         hat_mu_z_min, sigma_z_min = self.filter.predict(hat_x_plus_prev=hat_mu_z_prev, P_plus_prev=sigma_z_prev,
-                                                        control=action, dynamics_fn=transition_fn, Q=Q)
+                                                        control=action, rob_state=rob_state, dynamics_fn=transition_fn,
+                                                        Q=None)
         # Return predicted state estimates
         return hat_mu_z_min, sigma_z_min
 

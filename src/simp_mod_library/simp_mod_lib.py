@@ -59,6 +59,12 @@ class SimpModLib:
         self.rob_state = torch.zeros(1, self.rob_dim, device=self.device)
         # - - - - - - - - - - - - - - - - -
 
+    def __str__(self):
+        return "Library with simple models {0}".format(self.model_names)
+
+    def __repr__(self):
+        return self.__str__()
+
     def __getitem__(self, item: Union[int, str]) -> SimpModBook:
         if type(item) == int:
             return self.lib[self.model_names[item]]

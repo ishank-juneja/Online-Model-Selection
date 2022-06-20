@@ -7,12 +7,13 @@ class UnscentedKalmanFilter:
     Standard Sigma-Point Kalman Filter Implementation
     Notation based on: https://www.anuncommonlab.com/articles/how-kalman-filters-work/
     """
-    def __init__(self, state_dim: int, obs_dim: int, control_dim: int, Q: torch.Tensor, R: torch.Tensor, device: str):
+    def __init__(self, state_dim: int, obs_dim: int, control_dim: int, rob_dim: int, Q: torch.Tensor, R: torch.Tensor, device: str):
         """
         param state_dim: Dimensionality of the (output) state to be estimated
         param obs_dim: Dimensionality of the input observations. Here it is the dim of the outputs
         coming from the perception system
         param control_dim: Number of controls
+        param rob_dim: nstates in rob_state
         param Q: Process noise covariance
         param R: Observation noise covariance
         param device: cpu/gpu name str to put params on
@@ -21,6 +22,7 @@ class UnscentedKalmanFilter:
         self.state_dim = state_dim
         self.obs_dim = obs_dim
         self.control_dim = control_dim
+        self.rob_dim = rob_dim
 
         # Utils to deterministically compute sigma points as explained in
         #  https://groups.seas.harvard.edu/courses/cs281/papers/unscented.pdf
@@ -40,6 +42,7 @@ class UnscentedKalmanFilter:
         :param hat_x_plus_prev: Batch of states at the end of prev. iteration hat{x}^{+}_{k-1} (B, state_dim)
         :param P_plus_prev: Batch of covs at the end of previous iteration P^{+}_{k-1} (B, state_dim, state_dim)
         :param control: Actions to take me to next iteration u_{k-1} of shape (B, action_dim)
+        :param rob_state: GT state of the robot, needed to do dynamics (B, rob_dim)
         :param dynamics_fn: Operates on a batch of current states and actions (B, state_dim) and (B, action_dim)
         :param Q: Process noise at current time step Q_k (use if varies with k, else None)
         :return:
@@ -57,10 +60,14 @@ class UnscentedKalmanFilter:
 
         # Apply dynamics: Input is batch of sigma points: hat{x}^{+}_{i, k−1}]_{i=0}^{2n} and controls: u_{k-1}
         #  Output is a batch of: hat{x}^{-}_{k}
-        # Convert type 2 state to type 3 state to pass to dynamics function
-        new_sigma_points = dynamics_fn(sigma_points, sigma_controls).view(-1, n_sigma, self.state_dim)
-
+        # Convert sigma_points from type 2 state to type 3 state to make the gt rob_state parameters
+        #  interpretable as a part of the state on which dynamics operates
+        sigma_points_augmented = torch.cat((rob_state, sigma_points), dim=1)
+        # Do dynamics ...
+        new_sigma_points_augmented = dynamics_fn(sigma_points_augmented, sigma_controls).view(-1,
+                                                                                              n_sigma, self.state_dim)
         # Convert received type 3 back to type 2 to be consistent with filter
+        new_sigma_points = new_sigma_points_augmented[:, self.rob_dim:]
 
         # Get predicted next state hat{x}_{k}^{-}
         hat_x_min_k, cov = self.unscented_transform(new_sigma_points)
