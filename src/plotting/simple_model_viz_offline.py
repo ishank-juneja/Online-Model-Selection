@@ -13,29 +13,6 @@ class SMVOffline(SimpleModViz):
     def __init__(self, simp_model: str, vel_as_color: bool = False):
         super(SMVOffline, self).__init__(simp_model, vel_as_color)
 
-    @staticmethod
-    def save_frames(frames: list, save_dir: str):
-        """
-        Simply saves the passed frames as is
-        Used for plotting raw GIFs
-        :param frames: List of np.ndarrays containing images
-        :param save_dir: location where to save as png files
-        :return:
-        """
-        fig = plt.figure(figsize=(5, 5))
-        ax = fig.subplots(1, 1)
-        # Plot a separate plot for every frame in the trajectory
-        for idx in range(len(frames)):
-            # The image frame goes in the first column
-            ax.imshow(frames[idx])
-            # fig.suptitle('Trajectory', size=16)
-            # Save temporary png file frames in home folder
-            fig.savefig(os.path.join(save_dir, "file{0:03d}.png".format(idx + 1)))
-            ax.clear()
-        fig.clear()
-        plt.close()
-        return
-
     def save_train_animation_frames(self, imgs: list, save_dir: str, true_states: list = None,
                                     overlay_states: bool = False):
         """

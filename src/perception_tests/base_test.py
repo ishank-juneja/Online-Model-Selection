@@ -28,7 +28,7 @@ class BaseVizTest(metaclass=ABCMeta):
 
         # Create a file handler object
         self.dir_manager = ResultDirManager()
-        # Hand made tests created on kendama environment
+        # Hand made tests created on Kendama environment
         self.dir_manager.add_location('hand_made', 'data/hand_made_tests/')
         # Get a list of test cases from the location
         self.cached_tests = self.dir_manager.scrape_loc_for_glob('hand_made', 'kendama-*.npz')

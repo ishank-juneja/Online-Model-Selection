@@ -20,7 +20,12 @@ def main(args):
     # Folder for all things generated in this run
     run_folder_name = "online_run_{0}_{1}".format(task_name, current_time)
     run_folder_path = "runs/online/{0}".format(run_folder_name)
-    dir_manager.add_location('run_log', run_folder_path)
+    dir_manager.add_location("run_log_root", run_folder_path)
+    # Within root path make folders for certain kinds of data
+    data_folder_path = run_folder_path + "/data"
+    videos_folder_path = run_folder_path + "/videos"
+    dir_manager.add_location("run_log_data", data_folder_path)
+    dir_manager.add_location("video_log_data", videos_folder_path)
 
     # Path to log file
     log_file_path = os.path.join(run_folder_path, "run.log")
@@ -40,12 +45,16 @@ def main(args):
     #  Instead have the same torch device for an entire program the way Johnson does it ...
     mydevice = 'cuda:0'
 
+    # Prepare key word args for agent
+    kwargs = {'smodel_list': args.models,
+              'device': mydevice,
+              'dir_manager': dir_manager}
     if task_name == 'catching':
-        agent = CatchingAgent(smodel_list=args.models, device=mydevice)
+        agent = CatchingAgent(**kwargs)
     elif task_name == 'conkers':
-        agent = ConkersAgent(smodel_list=args.models, device=mydevice)
+        agent = ConkersAgent(**kwargs)
     elif task_name == 'kendama':
-        agent = KendamaAgent(smodel_list=args.models, device=mydevice)
+        agent = KendamaAgent(**kwargs)
     else:
         raise NotImplementedError
     logging.info("Created agent for task {0}".format(task_name))
@@ -54,6 +63,7 @@ def main(args):
     agent.reset_trial()
 
     agent.do_episode()
+    agent.save_episode_data()
 
 
 if __name__ == '__main__':

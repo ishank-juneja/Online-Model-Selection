@@ -2,9 +2,10 @@ import logging
 import numpy as np
 from src.config import PerceptionConfig
 from src.learned_models import SimpModPerception
-from src.plotting import SMVOnline
+from src.plotting import GIFmaker, SMVOnline
 from src.transition_distributions import HeuristicUnscentedKalman
 import torch
+from typing import Dict
 
 
 class SimpModBook:
@@ -18,13 +19,16 @@ class SimpModBook:
         example: (GPUKF, or UKF with hard-coded transition uncertainty scheme)
     4. A perception that maps the current observation to state and uncertainty phi(o_t) -> mu_y, Sigma_y
     """
-    def __init__(self, simp_mod: str, device: str):
+    def __init__(self, simp_mod: str, dir_manager, device: str):
         """
         :param simp_mod: string of simple model name
         :param device: string for device to put tensors on: 'cpu', 'cuda:0' etc.
         """
         # Name of the simple model kept by this book
         self.name = simp_mod
+
+        # dir_manager object handed down from upper classes
+        self.dir_manager = dir_manager
 
         # Device to put data structures associated with this book on
         self.device = device
@@ -42,38 +46,32 @@ class SimpModBook:
         # self.nstates = self.cfg.state_dim + self.cfg.rob_dim
         self.nstates = self.cfg.state_dim
 
-        # Containers for current simple model related estimates on the books, add a dim. at axis=0 for batched pro.
-        self.z_mu = torch.zeros(1, self.nstates, device=self.cfg.device, dtype=torch.float64)
-        self.z_sigma = self.cfg.prior_cov * torch.eye(self.nstates, device=self.cfg.device,
-                                                      dtype=torch.float64).unsqueeze(0)
-        # Set the uncertainty in rob states to 0
-        # self.cfg.prior_cov[:, :self.cfg.rob_dim, :self.cfg.rob_dim] = 0.0
-
         self.trans_dist = HeuristicUnscentedKalman(self.cfg, smodel_name=self.name)
         logging.info("Created Transition Model for {0} model".format(self.name.capitalize()))
 
         # Keys for the online collected dataset. gt = Ground Truth, ep = episode
-        self.data_keys = ["mu_y_history",
-                          "sigma_y_history",
-                          "mu_z_history",
-                          "sigma_z_history",
-                          "param_mu_history",
-                          "param_sigma_history",
-                          "seg_conf_history",
-                          "masked_frames_history"
+        self.data_keys = ["mu_y",
+                          "sigma_y",
+                          "mu_z",
+                          "sigma_z",
+                          "param_mu",
+                          "param_sigma",
+                          "seg_conf",
+                          "masked_frame"
                           ]
 
         # Container for the episode data collected for a particular simple model
         # Core datastruct that forms the book
-        self.episode_data = dict()
+        self.episode_history = dict()
         # Init dict entries with empty lists
-        self.clear_episode_lists()
+        self.clear_episode_history_lists()
 
-        # Simple Model visualization related
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        self.viz = SMVOnline(self.name)
-        self.viz.set_nframes(self.cfg.nframes)
-        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        # Containers for current simple model related estimates on the books,
+        # add a dim. at axis=0 for batched pro.
+        # Initialized t the standard prior for batched processing
+        self.z_mu = torch.zeros(1, self.nstates, device=self.cfg.device, dtype=torch.float64)
+        self.z_sigma = self.cfg.prior_cov * torch.eye(self.nstates, device=self.cfg.device,
+                                                      dtype=torch.float64).unsqueeze(0)
 
     def __str__(self):
         return "Book for simple model {0}".format(self.name)
@@ -91,10 +89,14 @@ class SimpModBook:
                                                       dtype=torch.float64).unsqueeze(0)
         return
 
-    def clear_episode_lists(self):
-        # Initialize all the episode-specific datasets with empty lists
+    def clear_episode_history_lists(self):
+        """
+        Initialize all the episode-specific datasets with empty lists
+        :return:
+        """
+        # Use lits to account for variable traj lengths
         for data_key in self.data_keys:
-            self.episode_data[data_key] = []
+            self.episode_history[data_key] = []
 
     def predict(self, action, rob_state):
         """
@@ -130,10 +132,35 @@ class SimpModBook:
 
         # Update belief in world
         self.z_mu, self.z_sigma = self.trans_dist.update(mu_y_pruned, self.z_mu, self.z_sigma)
+
+        # Cache results to dataset
+        self.episode_history['mu_y'].append(mu_y.cpu().detach().numpy())
+        self.episode_history['sigma_y'].append(sigma_y.cpu().detach().numpy())
+        self.episode_history['mu_z'].append(self.z_mu.cpu().detach().numpy())
+        self.episode_history['sigma_z'].append(self.z_sigma.cpu().detach().numpy())
+        self.episode_history['masked_frame'].append(masked)
+        self.episode_history['seg_conf'].append(conf)
+
         return
 
     def state_dim(self) -> int:
         return self.cfg.state_dim
+
+    def save_episode_data(self):
+        """
+        Save all the data associated accumulated for the last completed episode
+        :return:
+        """
+        # Convert every quantity of interest to a np array and then save as npz
+        self.data_keys = ["mu_y",
+                          "sigma_y",
+                          "mu_z",
+                          "sigma_z",
+                          "param_mu",
+                          "param_sigma",
+                          "seg_conf",
+                          "masked_frame"
+                          ]
 
     def reset_episode(self, obs: np.ndarray):
         """
@@ -145,11 +172,11 @@ class SimpModBook:
         # Reset state
         self.reset_model_state()
         # Clear any state built up over an episode for the transition distributions
-        self.clear_episode_lists()
+        self.clear_episode_history_lists()
         # Infer the initial state for starting to plan
         self.observation_update(obs)
 
-    def hard_reset(self):
+    def reset_book(self):
         """
         Reset all the state built up online for this simple model
         :return:
@@ -159,3 +186,27 @@ class SimpModBook:
         # TODO: Increase the scope of the resets once planning etc. are added
 
         logging.info("Hard reset book for {0} model".format(self.name.capitalize()))
+
+    def save_online_episode_viz(self, traj_hist_dict: Dict):
+        """
+        Save the visualization for this smodel's episode
+        :param traj_hist_dict: Data needed by trajectory plotting methods in standard format
+        :return:
+        """
+        # Get path to root folder for this run
+        root_path = self.dir_manager.get_abs_path('run_log_root')
+        # Create a temporary location within root to save frames into
+        dir_frames = self.dir_manager.add_location("tmp", root_path + "/tmp")
+
+        # Add a location for the generated frames to
+        rets_dict['save_dir'] = dir_save_frames
+
+        # Invoke the chosen viz function from self.viz
+        self.viz(**rets_dict)
+
+        # Find the next available GIF name in the folder where GIFs are being saved
+        gif_path = self.dir_manager.next_path('', '{0}_{1}'.format(self.model.model_name, viz_suffix),
+                                              postfix='%s.gif')
+
+        gif_maker = GIFmaker(delay=35)
+        gif_maker.make_gif(gif_path, dir_frames)

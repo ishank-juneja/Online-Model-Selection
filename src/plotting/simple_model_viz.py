@@ -400,3 +400,26 @@ class SimpleModViz:
     @staticmethod
     def homogenous_to_regular_coordinates(array: np.ndarray):
         return array[:-1] / array[-1]
+
+    @staticmethod
+    def save_frames(frames: list, save_dir: str):
+        """
+        Simply saves the passed frames as is
+        Used for plotting raw GIFs
+        :param frames: List of np.ndarrays containing images
+        :param save_dir: location where to save as png files
+        :return:
+        """
+        fig = plt.figure(figsize=(5, 5))
+        ax = fig.subplots(1, 1)
+        # Plot a separate plot for every frame in the trajectory
+        for idx in range(len(frames)):
+            # The image frame goes in the first column
+            ax.imshow(frames[idx])
+            # fig.suptitle('Trajectory', size=16)
+            # Save temporary png file frames in home folder
+            fig.savefig(os.path.join(save_dir, "file{0:03d}.png".format(idx + 1)))
+            ax.clear()
+        fig.clear()
+        plt.close()
+        return

@@ -1,5 +1,4 @@
 import numpy as np
-from src.plotting import SimpModLibViz
 from src.simp_mod_library.simp_mod_book import SimpModBook
 import torch
 from typing import List, Union
@@ -12,12 +11,16 @@ class SimpModLib:
     dynamics priors. Lib is a tool used by BaseAgent.
     Can be thought of as a sophisticated wrapper around a list of SimpModBooks (SMB)
     """
-    def __init__(self, model_names: List[str], rob_mass: float, device: str):
+    def __init__(self, model_names: List[str], rob_mass: float, dir_manager, device: str):
         """
-        param model_names: List of names of simple models in library
+        :param model_names: List of names of simple models in library
+        :param rob_mass: Common robot mass parameter
+        :param dir_manager: Dir manager object passed down from agent
         :param device: cpu/gpu
         """
         self.device = device
+
+        self.dir_manager = dir_manager
 
         # Sort the model names lexicographically for deterministic indexing of books in lib.
         model_names.sort()
@@ -33,7 +36,7 @@ class SimpModLib:
         self.rob_dim: int = None    # Number of states in common robot state
         self.action_dim: int = None  # Number of dims in actions should be common
         for mod_name in model_names:
-            smodel_book = SimpModBook(simp_mod=mod_name, device=device)
+            smodel_book = SimpModBook(simp_mod=mod_name, dir_manager=self.dir_manager, device=device)
             # Consistency check for newly created SMB
             if self.rob_dim is not None:
                 if smodel_book.cfg.rob_dim != self.rob_dim:
@@ -59,9 +62,6 @@ class SimpModLib:
         self.rob_mass_float = rob_mass
         self.rob_mass = torch.tensor(self.rob_mass_float, device=self.device)   # Learnable version
         # - - - - - - - - - - - - - - - - -
-
-        # Object for visualizing things at the lib level
-        self.viz = SimpModLibViz(self.lib)
 
     def __str__(self):
         return "Library with simple models {0}".format(self.model_names)
@@ -135,4 +135,13 @@ class SimpModLib:
         self.rob_state = torch.zeros(1, self.rob_dim, device=self.device)
         self.rob_mass = torch.tensor(self.rob_mass_float, device=self.device)
         for model in self.model_names:
-            self.lib[model].hard_reset()
+            self.lib[model].reset_book()
+
+    def save_episode_data(self):
+        """
+        Save all the data/state built up and iterated over for the entire library
+        :return:
+        """
+        for model in self.model_names:
+            self.lib[model].save_episode_data()
+

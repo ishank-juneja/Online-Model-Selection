@@ -18,5 +18,13 @@ class SimpModLibViz:
 
         return
 
-    # TODO: Add a method that visualizes the live filtered state and plots live filtered uncertainty
-    #  side by side for all the smodels
+    def save_episode_frames(self, agent_history: Dict, model_histories: Dict[Dict]):
+        """
+        Invoke the viz methods of books in model_lib to display current filtered state
+         of all simple models side by side
+        :param agent_history: History params specific to agent as defined in __init__ of BaseAgent
+        :param model_histories: Use the model_names to index into the model histories of individual simple models
+        :return:
+        """
+
+

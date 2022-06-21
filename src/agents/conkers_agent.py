@@ -3,11 +3,13 @@ from typing import List
 
 
 class ConkersAgent(BaseAgent):
-    def __init__(self, smodel_list: List[str], device: str = 'cuda:0'):
+    def __init__(self, smodel_list: List[str], dir_manager, device: str = 'cuda:0'):
         super(ConkersAgent, self).__init__(device=device)
 
         # Set task specific parameters here
         self.env_name: str = 'Conkers-v0'
+
+        self.dir_manager = dir_manager
 
         # Actions per loop iteration / nrepeats for action
         self.actions_per_loop = 1
@@ -22,6 +24,10 @@ class ConkersAgent(BaseAgent):
         self.planner_H = 20
         # Number of trajectories simulated by planner
         self.planner_N = 1000
+        # Minimum episode length of the length to be considered
+        # TODO: Make this variable interact with the chunk size while
+        #  chunking trajectories for Sys-ID
+        self.min_episode_len = 5
 
         # Indices of the gt state that are observable from the env
         # Ex: For passing down the gt values of actuator related quantities
