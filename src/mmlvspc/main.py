@@ -5,6 +5,7 @@ import logging
 import numpy as np
 import os
 from src.agents import CatchingAgent, ConkersAgent, KendamaAgent
+from src.plotting import SimpModLibViz
 from src.utils import ResultDirManager, setup_logging
 import torch
 
@@ -24,17 +25,24 @@ def main(args):
     # Within root path make folders for certain kinds of data
     data_folder_path = run_folder_path + "/data"
     videos_folder_path = run_folder_path + "/videos"
-    dir_manager.add_location("run_log_data", data_folder_path)
-    dir_manager.add_location("video_log_data", videos_folder_path)
-
+    # tmp location to store animation frames
+    tmp_loc_path = videos_folder_path + "/tmp"
+    dir_manager.add_location("run_data", data_folder_path)
+    dir_manager.add_location("video_data", videos_folder_path)
+    dir_manager.add_location("tmp", tmp_loc_path)
     # Path to log file
     log_file_path = os.path.join(run_folder_path, "run.log")
 
-    if not setup_logging(console_log_output="stdout", console_log_level="debug", console_log_color=True,
+    if not setup_logging(console_log_output="stdout", console_log_level="info", console_log_color=True,
                          logfile_file=log_file_path, logfile_log_level="debug", logfile_log_color=False,
                          log_line_template="%(color_on)s[%(created)d] [%(threadName)s] [%(levelname)-8s] %(message)s%(color_off)s"):
         print("Failed to setup logging, aborting.")
         exit()
+    # - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - -
+    # Setup video/GIF visualizations
+    viz = SimpModLibViz(task_name=task_name, model_names=args.models)
     # - - - - - - - - - - - - - - - - - - - - - - - - -
 
     # set seed
@@ -63,7 +71,24 @@ def main(args):
     agent.reset_trial()
 
     agent.do_episode()
-    agent.save_episode_data()
+    # Save episode data to disk
+    ep_file_name = "test_episode.npz"
+    ep_file_path = dir_manager.get_abs_path('run_data') + '/' + ep_file_name
+    agent.save_episode_data(ep_file_path)
+    agent_ep_history, smodels_ep_histories = agent.load_episode_data(ep_file_path)
+    # Assemble plotting function kwargs
+    kwargs = {'viz_type': 'frames_only',
+              'agent_ep_history': agent_ep_history,
+              'model_ep_histories': smodels_ep_histories,
+              'save_dir': dir_manager.get_abs_path('tmp'),
+              }
+    viz(**kwargs)
+
+    # Expect tmp dir to be empty after run, try and remove
+    try:
+        os.rmdir(tmp_loc_path)
+    except OSError:
+        logging.error("tmp location {0} not empty on exit ...".format(tmp_loc_path))
 
 
 if __name__ == '__main__':

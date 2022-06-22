@@ -45,6 +45,8 @@ class Config(CommonEncConfig):
                 self.obs_dim = 4
             # Mask to remove things coming from perception for which GT is available
             self.obs_mask = None
+        else:
+            self.obs_dim = None
         # Training hparams
         self.epochs = 80
         self.batch_size = 64

@@ -5,6 +5,9 @@ import os
 
 class GIFmaker:
     def __init__(self, delay: int = 20):
+        """
+        :param delay: Delay between consecutive frames in some units (100ms??)
+        """
         # Delay between consecutive frames of the GIF in some units
         self.delay = str(delay)
 

@@ -2,7 +2,6 @@ import logging
 import numpy as np
 from src.config import PerceptionConfig
 from src.learned_models import SimpModPerception
-from src.plotting import GIFmaker, SMVOnline
 from src.transition_distributions import HeuristicUnscentedKalman
 import torch
 from typing import Dict
@@ -186,27 +185,3 @@ class SimpModBook:
         # TODO: Increase the scope of the resets once planning etc. are added
 
         logging.info("Hard reset book for {0} model".format(self.name.capitalize()))
-
-    def save_online_episode_viz(self, traj_hist_dict: Dict):
-        """
-        Save the visualization for this smodel's episode
-        :param traj_hist_dict: Data needed by trajectory plotting methods in standard format
-        :return:
-        """
-        # Get path to root folder for this run
-        root_path = self.dir_manager.get_abs_path('run_log_root')
-        # Create a temporary location within root to save frames into
-        dir_frames = self.dir_manager.add_location("tmp", root_path + "/tmp")
-
-        # Add a location for the generated frames to
-        rets_dict['save_dir'] = dir_save_frames
-
-        # Invoke the chosen viz function from self.viz
-        self.viz(**rets_dict)
-
-        # Find the next available GIF name in the folder where GIFs are being saved
-        gif_path = self.dir_manager.next_path('', '{0}_{1}'.format(self.model.model_name, viz_suffix),
-                                              postfix='%s.gif')
-
-        gif_maker = GIFmaker(delay=35)
-        gif_maker.make_gif(gif_path, dir_frames)

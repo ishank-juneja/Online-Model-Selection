@@ -1,4 +1,5 @@
 from src.agents.base_agent import BaseAgent
+from src.plotting import SimpModLibViz
 from typing import List
 
 
