@@ -3,7 +3,7 @@ import subprocess
 import os
 
 
-class GIFmaker:
+class GIFMaker:
     def __init__(self, delay: int = 20):
         """
         :param delay: Delay between consecutive frames in some units (100ms??)

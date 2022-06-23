@@ -17,101 +17,58 @@ class SMVOnline(SimpleModViz):
         # y coordinate of robot position in 2D plane
         self.rob_y_pos = 0.0
         self.rob_y_vel = 0.0
-        self.overlayed_rob_state = np.zeros(4, dtype=np.float64)
+        self.rob_dims = 4
         # - - - - - - - - - - - - - - - - - - - - -
 
-    def overlay_rob_state(self, img_axis, observed_state, alpha=1.0, color='g', display_t_only: bool = False):
+    def overlay_rob_state(self, img_axis, online_state, alpha=1.0, color='g', display_t_only: bool = False):
         """
         Overlay the GT robot state in the same way we overlay ball state as a point in 2D
         :param img_axis:
-        :param observed_state: Assumed to be size 2 1D np array with pos and vel
+        :param online_state: Assumed to be size 2 1D np array with pos and vel
         :param alpha:
         :param color:
         :param display_t_only:
         :return:
         """
-        self.overlayed_rob_state[0] = observed_state[0]
-        self.overlayed_rob_state[1] = self.rob_y_pos
-        self.overlayed_rob_state[2] = observed_state[1]
-        self.overlayed_rob_state[3] = self.rob_y_vel
-        super(SMVOnline, self).overlay_ball_state(img_axis, self.overlayed_rob_state, alpha, color, display_t_only)
+        rob_state_as_ball = np.zeros(self.rob_dims, dtype=np.float64)
+        rob_state_as_ball[0] = online_state[0]
+        rob_state_as_ball[1] = self.rob_y_pos
+        rob_state_as_ball[2] = online_state[1]
+        rob_state_as_ball[3] = self.rob_y_vel
+        super(SMVOnline, self).overlay_ball_state(img_axis, rob_state_as_ball, alpha, color, display_t_only)
         return
 
-    def overlay_ball_state(self, img_axis, observed_state, alpha=1.0, color='g', display_t_only: bool = False):
+    def overlay_ball_state(self, img_axis, online_state, alpha=1.0, color='g', display_t_only: bool = False):
         """
         Override overlay function for cartpole to account for augmented state containing rob_state
          in first 2 dimensions
         :param img_axis:
-        :param observed_state:
+        :param online_state:
         :param alpha:
         :param color:
         :param display_t_only:
         :return:
         """
-        observed_state = observed_state[2:]
-        super(SMVOnline, self).overlay_ball_state(img_axis, observed_state, alpha, color, display_t_only)
+        offline_state = online_state[2:]
+        super(SMVOnline, self).overlay_ball_state(img_axis, offline_state, alpha, color, display_t_only)
 
-    def overlay_cartpole_state(self, img_axis, observed_state, alpha=1.0, color='g', display_t_only: bool = False):
+    def overlay_cartpole_state(self, img_axis, online_state, alpha=1.0, color='g', display_t_only: bool = False):
         """
         Override overlay function for cartpole to account for different state representation
         :param img_axis:
-        :param observed_state:
+        :param online_state: Cartpole state rep: [rob_x, rob_v, x_mass, y_mass, v_cart, vx_mass, vy_mass]
         :param alpha:
         :param color:
         :param display_t_only:
         :return:
         """
-        # Cam matrix for projecting points from world to pixel space
-        cam_mat = np.load(self.config.cam_mat_path)
-        # Homogenous world coordinates for cart and mass
-        self.carty = 0.0
-        cart_world = np.array([observed_state[0], 0.0, self.carty, 1.0])
-        mass_world = np.array([observed_state[2], 0.0, observed_state[3], 1.0])
-        cart_pixel = cam_mat @ cart_world
-        mass_pixel = cam_mat @ mass_world
-        # Divide by 2D homogenous scaling term
-        cart_pixel = self.homogenous_to_regular_coordinates(cart_pixel)
-        mass_pixel = self.homogenous_to_regular_coordinates(mass_pixel)
-        # Perform extra steps needed when dealing with 2 side by side frames as opposed to 1 frame
-        if self.nframes == 2 and (not display_t_only):
-            # Check if dt has been set, else can't deal with 2 frames
-            if self.dt is None:
-                raise ValueError("Cannot perform overlay on two states when dt has not been set")
-            # Augment the x-axis pixel coordinates to correspond to the right half of 2-stacked together frames
-            cart_pixel[0] += self.config.imsize
-            mass_pixel[0] += self.config.imsize
-            # Compute the static portion (cart and mass coords) of the previous state based on current velocity
-            #  formula for velocity is (x_t - x_{t-1})/delta_t
-            # Determine cart position at t-1
-            prev_cart_world_x = observed_state[0] - observed_state[1] * self.dt
-            prev_cart_world = np.array([prev_cart_world_x, 0.0, self.carty, 1.0])
-            prev_cart_pixel = cam_mat @ prev_cart_world
-            prev_cart_pixel = self.homogenous_to_regular_coordinates(prev_cart_pixel)
-            # Compute length of the pole in meter, Use plen and angular velocity to determine mass position at {t-1}
-            plen = self.euclidean_distance(cart_world, mass_world)
-
-            # - - - - - - - - - - -
-            # # Find current angular location
-            # theta_cur = atan2(observed_state[1] - observed_state[0], observed_state[2])
-            # # Theta previous (wrap around taken care of by trig functions subsequently)
-            # theta based angular velocity replaced with linear velocities in state representation
-            # theta_prev = theta_cur - observed_state[4] * self.dt
-            # If using angular velocity can bring back above instead
-            # theta_prev = theta_cur - theta_dot * self.dt
-            # prev_mass_world = np.array([prev_cart_world_x + plen * sin(theta_prev), 0.0, self.carty + plen * cos(theta_prev), 1.0])
-            # # - - - - - - - - - - -
-
-            prev_mass_worldx = mass_world[0] - observed_state[4] * self.dt
-            prev_mass_worldy = mass_world[2] - observed_state[5] * self.dt
-            # prev_mass_worldx = observed_state[4]
-            # prev_mass_worldy = observed_state[5]
-            prev_mass_world = [prev_mass_worldx, 0.0, prev_mass_worldy, 1.0]
-
-            prev_mass_pixel = cam_mat @ prev_mass_world
-            prev_mass_pixel = self.homogenous_to_regular_coordinates(prev_mass_pixel)
-            self.plot_dumbel(img_axis, (prev_cart_pixel[0], prev_cart_pixel[1]),
-                             (prev_mass_pixel[0], prev_mass_pixel[1]), color=color, alpha=alpha)
-        self.plot_dumbel(img_axis, (cart_pixel[0], cart_pixel[1]), (mass_pixel[0], mass_pixel[1]),
-                         color=color, alpha=alpha)
+        # Scramble observed state in format specified in paper into the old offline used
+        #  cartpole state format of [x_cart, x_mass, y_mass, v_cart, vx_mass, vy_mass]
+        # Allocate container to hold unscrambled online state, same dims as offline
+        offline_state = np.copy(online_state)
+        offline_state[1] = online_state[2]
+        offline_state[2] = online_state[3]
+        offline_state[3] = online_state[1]
+        super(SMVOnline, self).overlay_cartpole_state(img_axis, offline_state, alpha, color, display_t_only)
         return
 

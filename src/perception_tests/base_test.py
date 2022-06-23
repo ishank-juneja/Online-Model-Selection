@@ -3,7 +3,7 @@ import glob
 import numpy as np
 import os
 from src.learned_models import SimpModPerception
-from src.plotting import SMVOffline, GIFmaker
+from src.plotting import SMVOffline, GIFMaker
 from src.simp_mod_datasets import FramesHandler
 from src.utils import ResultDirManager
 import subprocess
@@ -169,14 +169,14 @@ class BaseVizTest(metaclass=ABCMeta):
         # Invoke the chosen viz function of self.viz
         viz_function(**rets_dict)
 
-        # Location where GIFmaker can find the frames to make GIF with
+        # Location where VideoMaker can find the frames to make GIF with
         dir_frames = self.dir_manager.get_abs_path('tmp')
 
         # Find the next available GIF name in the folder where GIFs are being saved
         gif_path = self.dir_manager.next_path('vid_results', '{0}_{1}'.format(self.model.model_name, viz_suffix),
                                               postfix='%s.gif')
 
-        gif_maker = GIFmaker(delay=35)
+        gif_maker = GIFMaker(delay=35)
         gif_maker.make_gif(gif_path, dir_frames)
 
     def invoke_perception(self, frame: np.ndarray):

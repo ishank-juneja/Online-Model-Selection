@@ -47,7 +47,7 @@ class Kendama(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
         # Receive collision type if any
         collision_type = self.collision_check()
 
-        print("Collision Type is {0}".format(collision_type))
+        # print("Collision Type is {0}".format(collision_type))
 
         # type=1 is success
         self.done = self.done or (collision_type == 1)
@@ -63,7 +63,7 @@ class Kendama(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
         if out_of_view:
             print('Failed, went offscreen')
 
-        # Note: Reward here was changed for the RL envs
+        # NB: Reward here was changed for the RL envs
         return ob, -(goal_cost + centre_cost + fail_cost), done, {'state': state, 'success': self.done}
 
     def collision_check(self):
@@ -86,7 +86,7 @@ class Kendama(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
                 if "gball" in collision_pair:
                     success = 1
 
-        print(collision_pairs)
+        # print(collision_pairs)
 
         if success:
             return 1

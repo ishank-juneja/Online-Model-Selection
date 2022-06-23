@@ -1,7 +1,7 @@
 import argparse
 import numpy as np
 from src.learned_models.ensemble import EncoderEnsemble
-from src.plotting import GIFmaker, SMVOffline
+from src.plotting import GIFMaker, SMVOffline
 import torch
 
 
@@ -65,7 +65,7 @@ def run_perception_on_test(self, frames):
     self.viz.save_test_animation_frames_ver1(masked_frames, traj_mu, traj_stddev, full_mu, dir_save)
 
     gif_path = "results/test.gif"
-    gif_maker = GIFmaker()
+    gif_maker = GIFMaker()
     gif_maker.make_gif(gif_path, dir_save)
 
     return
@@ -78,7 +78,7 @@ def main(args):
 
     viz = SMVOffline(simp_model='cartpole')
 
-    gif_maker = GIFmaker()
+    gif_maker = GIFMaker()
 
     # input = np.zeros((64, 64, 6), dtype=np.uint8)
 

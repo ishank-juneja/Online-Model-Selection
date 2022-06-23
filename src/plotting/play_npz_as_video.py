@@ -1,6 +1,6 @@
 import argparse
 import numpy as np
-from src.plotting import ClickableMujocoEnv, GIFmaker, SimpleModViz
+from src.plotting import ClickableMujocoEnv, GIFMaker, SimpleModViz
 
 
 def main(args):
@@ -18,7 +18,7 @@ def main(args):
 
     viz.save_train_animation_frames(frames, dir_save)
 
-    gif_maker = GIFmaker()
+    gif_maker = GIFMaker()
 
     gif_name = args.file.split('/')[-1].split('.')[0]
 

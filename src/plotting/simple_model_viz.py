@@ -1,4 +1,4 @@
-from math import atan2, sin, cos, pi
+from math import atan2, sin, cos, pi, sqrt
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -418,8 +418,69 @@ class SimpleModViz:
             ax.imshow(frames[idx])
             # fig.suptitle('Trajectory', size=16)
             # Save temporary png file frames in home folder
-            fig.savefig(os.path.join(save_dir, "file{0:03d}.png".format(idx + 1)))
+            fig.savefig(os.path.join(save_dir, "file{0:05d}.png".format(idx + 1)))
             ax.clear()
         fig.clear()
         plt.close()
         return
+
+    @staticmethod
+    # Takes the covariance matrix Sigma as an input
+    def plot_ellipse(sigma: np.ndarray, num_sigmas: int = 6, is_row_vec: bool = False, is_std_dev: bool = False):
+        """
+        Using plot_ellipse for uncertainty overlays ... (Bad idea, unused)
+        1. Use sigma to get a zero centered uncertainty ellipse in world x-y coordinates
+        2. Move the ellipse to location of mean
+        3. Convert correct centered ellipse coordinates to x-y-z world coordinates
+        4. Arrange the world coordinates of the ellipse as col. vectors into a matrix
+        5. Matrix multiple camera matrix with mat of col vectors cam_mat @ ell_pts_xyz to get ell_pts_px (ellipse
+         pts in pixel coordinates)
+        6. Overlay the ellipse points onto img_axis
+        :param sigma: Matrix/vector of covariance/std_dev values
+        :param num_sigmas: Number of sigmas to put in the contour (ex: 1-sigma, 2_sigma etc)
+        :param is_row_vec: If True then Sigma should be a row vector interpreted as a diagonal matrix of covs/std-devs
+        :param is_std_dev: If True then, the entries of Sigma are std_dev values
+        :return:
+        """
+        # Make sure sigma is a matrix of covariances before perform EVD
+        if is_row_vec:
+            # Verfiy that sigma is indeed a 1D vector
+            if len(sigma.shape) != 1:
+                raise ValueError("sigma must be a 1D array when is_row_vec=True")
+            else:
+                sigma_mat = np.diagflat(sigma)
+        else:
+            # Should already be a square 2D array
+            if len(sigma.shape) != 2:
+                raise ValueError("sigma not a 2D array")
+            elif sigma.shape[0] != sigma.shape[1]:
+                raise ValueError("sigma not a square 2D array")
+            # Already square mat
+            else:
+                sigma_mat = sigma
+        if is_std_dev:
+            sigma_cov = np.square(sigma_mat)
+        else:
+            sigma_cov = sigma_mat
+        # Perform eigen value decomposition of sigma
+        e_vals, e_vecs = np.linalg.eig(sigma_cov)
+        # Get the eigen vector which is the direction of major axis
+        evec1 = e_vecs[:, 0]
+        # Get the minor axis
+        evec2 = e_vecs[:, 1]
+        # Find the angle that ellipse needs to be rotated to get the right ellipse contour
+        theta = atan2(evec1[1], evec1[0])
+        # Get length of semi-major and semi-minor axes, use 2-sigma contour
+        a = num_sigmas * sqrt(e_vals[0])
+        b = num_sigmas * sqrt(e_vals[1])
+        # Generate a Standard Ellipse
+        t = np.linspace(0, 2 * pi, 100)
+        Ell = np.array([a * np.cos(t), b * np.sin(t)])
+        # 2-D rotation matrix
+        R_rot = np.array([[cos(theta), -sin(theta)],
+                          [sin(theta), cos(theta)]])
+        # Rotated Ellipse
+        Ell_rot = np.zeros((2, Ell.shape[1]))
+        for i in range(Ell.shape[1]):
+            Ell_rot[:, i] = np.dot(R_rot, Ell[:, i])
+        return Ell_rot

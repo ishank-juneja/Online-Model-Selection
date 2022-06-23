@@ -13,7 +13,7 @@ import os
 from src.utils import EncDataset
 from src.config import SegConfig, CommonEncConfig
 from src.simp_mod_datasets import FramesHandler, nsd, SimpleModel
-from src.plotting import GIFmaker, SimpleModViz
+from src.plotting import GIFMaker, SimpleModViz
 
 
 def main(args):
@@ -30,7 +30,7 @@ def main(args):
 
     trajplotter = SimpleModViz(simp_model)
     trajplotter.set_nframes(nframes)
-    gifmaker = GIFmaker()
+    gifmaker = GIFMaker()
 
     # Do a consistency check and obtain the downsample ratio
     if seg_config.imsize % enc_config.imsize == 0:

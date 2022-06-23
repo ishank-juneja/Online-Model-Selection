@@ -33,7 +33,7 @@ class SMVOffline(SimpleModViz):
                 self.overlay_state(img_axis=ax, observed_state=true_states[idx], alpha=1.0, color='g')
             fig.suptitle('{0} Trajectory'.format(self.simp_model.capitalize()), size=16)
             # Save temporary png file frames in home folder
-            fig.savefig(os.path.join(save_dir, "file{0:03d}.png".format(idx + 1)))
+            fig.savefig(os.path.join(save_dir, "file{0:05d}.png".format(idx + 1)))
             ax.clear()
         fig.clear()
         plt.close()
@@ -123,7 +123,7 @@ class SMVOffline(SimpleModViz):
             fig.suptitle("{0} Perception".format(self.simp_model.capitalize()), size=18)
 
             # Save temporary png file frames in designated folder
-            fig.savefig(os.path.join(save_dir, "file{0:03d}.png".format(idx + 1)))
+            fig.savefig(os.path.join(save_dir, "file{0:05d}.png".format(idx + 1)))
 
             # Clear all axes for next frame
             for jdx in range(naxes):
@@ -200,7 +200,7 @@ class SMVOffline(SimpleModViz):
             fig.suptitle("{0} Perception".format(self.simp_model.capitalize()), size=18)
 
             # Save temporary png file frames in designated folder
-            fig.savefig(os.path.join(save_dir, "file{0:03d}.png".format(idx + 1)))
+            fig.savefig(os.path.join(save_dir, "file{0:05d}.png".format(idx + 1)))
 
             # Clear all axes for next frame
             for jdx in range(naxes):
@@ -246,7 +246,7 @@ class SMVOffline(SimpleModViz):
             self.add_legend_fig(fig)
             fig.suptitle('Uncertainty Evolution for Perception', size=18)
             # Save temporary png file frames in home folder
-            fig.savefig(os.path.join(save_dir, "file{0:03d}.png".format(idx + 1)))
+            fig.savefig(os.path.join(save_dir, "file{0:05d}.png".format(idx + 1)))
             # Clear all axes for next frame
             for jdx in range(naxes):
                 ax[jdx].cla()
@@ -297,7 +297,7 @@ class SMVOffline(SimpleModViz):
             self.add_legend_fig(fig)
             fig.suptitle('Uncertainty Evolution for Perception', size=18)
             # Save temporary png file frames in home folder
-            fig.savefig(os.path.join(save_dir, "file{0:03d}.png".format(idx + 1)))
+            fig.savefig(os.path.join(save_dir, "file{0:05d}.png".format(idx + 1)))
             # Clear all axes for next frame
             for jdx in range(naxes):
                 ax[jdx].cla()
@@ -317,7 +317,7 @@ class SMVOffline(SimpleModViz):
             ax[1].imshow(after[idx])
             fig.suptitle('Segmentation for Cartpoles on Kendama', size=18)
             # Save temporary png file frames in home folder
-            fig.savefig(os.path.join(save_dir, "file{0:03d}.png".format(idx + 1)))
+            fig.savefig(os.path.join(save_dir, "file{0:05d}.png".format(idx + 1)))
             # Clear all axes for next frame
             for jdx in range(2):
                 ax[jdx].cla()
