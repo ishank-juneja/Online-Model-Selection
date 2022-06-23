@@ -43,7 +43,10 @@ class SimpModLibViz:
         if viz_type == "frames_only":
             # Plot frames only with no uncertainty visualization
             viz_fn = self.save_frames_only
-        # TODO: Add a method here that plots 2 filtered states (predicted and corrected) for every frame
+        elif viz_type == "check_filter_dynamics":
+            # Plot frames only but with 2 different frames for predicted and corrected
+            #  filter states
+            viz_fn = self.save_check_filter_dynamics
         else:
             raise NotImplementedError
         # Save frames to disk
@@ -73,28 +76,35 @@ class SimpModLibViz:
         # Infer number of time-steps in episode from data
         nsteps = len(agent_ep_history['action'])
 
-        # Create dict of overlay functions
+        # Fetch rob states from agent episode data, shape: nsteps x 1 x rob_dim
+        rob_states = agent_ep_history['gt_rob_state']
+        # Create dict of overlay functions and create rob state augmented smodel states
         overlay_fn_dict = {}
         for smodel in self.model_names:
             overlay_fn_dict[smodel] = self.smodel_vizs[smodel].overlay_state
+            # Fetch smodel states for active model from SimPModBook episode data
+            smodel_states =  model_ep_histories[smodel]['mu_z']
+            # Concatenate robot state and filtered simple model state
+            smodel_aug_states = np.dstack((rob_states, smodel_states))
 
         for idx in range(nsteps):
             # Plot raw gt_frames on first axis
             ax[0].imshow(agent_ep_history['gt_frame'][idx])
             # Fetch GT rob_state at time idx
-            rob_state = agent_ep_history['gt_rob_state'][idx][0, :]
+            rob_state = rob_states[idx][0, :]
             # Make a window and state overlay for every model
             for jdx, smodel in enumerate(self.model_names):
-                smodel_state = model_ep_histories[smodel]['mu_z'][idx][0, :]
                 # Augmented state with rob_state added
-                smodel_state_aug = np.hstack((rob_state, smodel_state))
+                smodel_aug_state = smodel_aug_states[idx][0, :]
                 smodel_frame = model_ep_histories[smodel]['masked_frame'][idx]
                 # Display the masked frame for this smodel on an image axis
                 ax[jdx + 1].imshow(smodel_frame)
                 # Overlay smodel state on imag axis, only with a single frame at time t
                 #  and no frame at time t-1
-                overlay_fn_dict[smodel](ax[jdx + 1], smodel_state_aug, display_t_only=True)
-
+                overlay_fn_dict[smodel](ax[jdx + 1], smodel_aug_state, display_t_only=True)
+                # Overlay robot state as a Red dot on image
+                self.smodel_vizs[smodel].overlay_rob_state(ax[jdx + 1], rob_state, display_t_only=True,
+                                                           color='r')
             fig.suptitle("{0} Filtered S-model States".format(self.task_name.capitalize()), size=18)
 
             # Save temporary png file frames in designated folder
@@ -107,6 +117,12 @@ class SimpModLibViz:
 
         fig.clear()
         plt.close()
+        return
+
+    def save_check_filter_dynamics(self, save_dir: str, agent_ep_history: Dict, model_ep_histories: Dict):
+        # Use every frame twice
+
+        return
 
     @staticmethod
     def cleanup_frames(tmp_frames_dir):

@@ -49,10 +49,13 @@ class SimpModBook:
         logging.info("Created Transition Model for {0} model".format(self.name.capitalize()))
 
         # Keys for the online collected dataset. gt = Ground Truth, ep = episode
+        #  TODO: remove mu_z and sigma_z predicted (pre) if dynamics ok
         self.data_keys = ["mu_y",
                           "sigma_y",
                           "mu_z",
                           "sigma_z",
+                          "mu_z_pre",
+                          "sigma_z_pre",
                           "param_mu",
                           "param_sigma",
                           "seg_conf",
@@ -105,6 +108,9 @@ class SimpModBook:
         :return:
         """
         self.z_mu, self.z_sigma = self.trans_dist.predict(action, rob_state, self.z_mu, self.z_sigma)
+        # Append intermediate predicted z ' s to smodel episode data
+        self.episode_history['mu_z_pre'].append(self.z_mu.cpu().detach().numpy())
+        self.episode_history['sigma_z_pre'].append(self.z_sigma.cpu().detach().numpy())
         return
 
     def observation_update(self, obs: np.ndarray):

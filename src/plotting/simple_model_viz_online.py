@@ -12,6 +12,30 @@ class SMVOnline(SimpleModViz):
     """
     def __init__(self, simp_model: str, vel_as_color: bool = False):
         super(SMVOnline, self).__init__(simp_model, vel_as_color)
+        # - - - - - - - - - - - - - - - - - - - - -
+        # Params related to visualizing of robot state
+        # y coordinate of robot position in 2D plane
+        self.rob_y_pos = 0.0
+        self.rob_y_vel = 0.0
+        self.overlayed_rob_state = np.zeros(4, dtype=np.float64)
+        # - - - - - - - - - - - - - - - - - - - - -
+
+    def overlay_rob_state(self, img_axis, observed_state, alpha=1.0, color='g', display_t_only: bool = False):
+        """
+        Overlay the GT robot state in the same way we overlay ball state as a point in 2D
+        :param img_axis:
+        :param observed_state: Assumed to be size 2 1D np array with pos and vel
+        :param alpha:
+        :param color:
+        :param display_t_only:
+        :return:
+        """
+        self.overlayed_rob_state[0] = observed_state[0]
+        self.overlayed_rob_state[1] = self.rob_y_pos
+        self.overlayed_rob_state[2] = observed_state[1]
+        self.overlayed_rob_state[3] = self.rob_y_vel
+        super(SMVOnline, self).overlay_ball_state(img_axis, self.overlayed_rob_state, alpha, color, display_t_only)
+        return
 
     def overlay_ball_state(self, img_axis, observed_state, alpha=1.0, color='g', display_t_only: bool = False):
         """
