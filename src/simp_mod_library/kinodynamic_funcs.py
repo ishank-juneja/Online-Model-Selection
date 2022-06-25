@@ -33,7 +33,7 @@ class BaseDynamics(nn.Module, metaclass=ABCMeta):
         self.vlim = 20
         # - - - - - - - - - - - - - - - - -
 
-    def forward(self, state, action):
+    def forward(self, state: torch.Tensor, action: torch.Tensor):
         """
         Placeholder/template for propagating dynamics
         :param state:

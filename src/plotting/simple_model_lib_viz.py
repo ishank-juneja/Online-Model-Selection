@@ -11,9 +11,8 @@ from typing import List, Literal, Dict
 
 class SimpModLibViz:
     """
-    Serves two purposes:
-    1. Act like an interface between SML and visualizers of individual simple models
-    2. Define methods for viz quantities that are common to all models (ex: Robot State)
+    Solution to plotting data cached during a single episode ...
+    Code repetition due to subtle differences between the plotting of different data_keys
     """
     def __init__(self, task_name: str, model_names: List[str]):
         """
@@ -24,11 +23,14 @@ class SimpModLibViz:
         self.model_names = model_names
         self.nmodels = len(model_names)
 
-        self.smodel_vizs = {}
-
+        # Create an online viz method and get the right overlay function for every simple model in the library
+        self.vizs = {}
+        self.overlay_fns = {}
         for smodel in self.model_names:
-            self.smodel_vizs[smodel] = SMVOnline(smodel)
-            self.smodel_vizs[smodel].set_nframes(nframes=1)
+            self.vizs[smodel] = SMVOnline(smodel)
+            self.vizs[smodel].set_nframes(nframes=1)
+            # Retrieve reference to the right viz function from a SMViz inited using the right config file
+            self.overlay_fns[smodel] = self.vizs[smodel].overlay_state
 
         # - - - - - - - - - - - - - - - - - -
         # Figure saving related
@@ -37,7 +39,8 @@ class SimpModLibViz:
         self.figure_saver = FigureSaver()
         # - - - - - - - - - - - - - - - - - -
 
-    def __call__(self, save_dir: str, viz_type: Literal["frames_only"], agent_ep_history: Dict, model_ep_histories: Dict[str, Dict]):
+    def __call__(self, save_dir: str, viz_name: Literal["filtered_state_on_frames", "predicted_state_on_frames"],
+                 agent_ep_history: Dict, model_ep_histories: Dict[str, Dict]):
         """
         :param save_dir:
         :param viz_type:
@@ -45,16 +48,7 @@ class SimpModLibViz:
         :param model_ep_histories:
         :return:
         """
-        # Pick the visualization function for saving png frames to disk
-        if viz_type == "smodel_frames":
-            # Plot frames only with no uncertainty visualization
-            viz_fn = self.save_frames_only
-        elif viz_type == "smodel_frames_and_plot":
-            # Plot frames only but with 2 different frames for predicted and corrected
-            #  filter states
-            raise NotImplementedError
-        else:
-            raise NotImplementedError
+        viz_fn = self.__getattribute__(viz_name)
         # Save frames to disk
         viz_fn(save_dir, agent_ep_history, model_ep_histories)
         # Stitch together frames into gif
@@ -64,23 +58,23 @@ class SimpModLibViz:
         # gif_path = out_dir + "/run.gif"
         mp4_path = out_dir + "/run.mp4"
         # self.gif_maker.make_gif(gif_path=gif_path, frames_dir=save_dir)
-        self.video_maker.make_video(video_path=mp4_path, frames_dir=save_dir)
+        # self.video_maker.make_video(video_path=mp4_path, frames_dir=save_dir)
         # Remove frames from tmp folder
-        self.cleanup_frames(save_dir)
+        # self.cleanup_frames(save_dir)
 
-    def save_frames_only(self, save_dir: str, agent_ep_history: Dict, model_ep_histories: Dict):
+    def filtered_state_on_frames(self, save_dir: str, agent_ep_history: Dict, model_ep_histories: Dict):
         """
-        Plot gt_frame (from agent), and simple model states over-layed on their segmented images side by side
+        Plot gt_frame (from agent), and filtered simple model states over-layed on their segmented images side by side
         :param save_dir: Dir to save results in
         :param agent_ep_history: Contains data for keys defined in BaseAgent
-        :param model_ep_histories: ... SimpModBook
+        :param model_ep_histories: data for keys defined in SimpModBook
         :return:
         """
         # Number of axes in plot
         naxes = self.nmodels + 1
         fig = plt.figure(figsize=(5 * naxes, 5))
         ax = fig.subplots(1, naxes)
-        # First frame flag
+        # First frame flag, only apply tight_layout to 1 frame
         first_frame = True
 
         # Infer number of time-steps in episode from data
@@ -88,66 +82,165 @@ class SimpModLibViz:
 
         # Fetch rob states from agent episode data, shape: nsteps x 1 x rob_dim
         rob_states = agent_ep_history['gt_rob_state']
-        # Create dict of overlay functions and create rob state augmented smodel states
-        overlay_fn_dict = {}
-        for smodel in self.model_names:
-            overlay_fn_dict[smodel] = self.smodel_vizs[smodel].overlay_state
-            # Fetch smodel states for active model from SimPModBook episode data
-            smodel_states = model_ep_histories[smodel]['mu_z']
-            # Predicted smodel states, one row less than smodel_states
-            smodel_states_pred = model_ep_histories[smodel]['mu_z_pre']
-            # Concatenate robot state and filtered simple model state
-            smodel_aug_states = np.dstack((rob_states, smodel_states))
-            # Repeat for pred_states
-            smodel_aug_pred_states = np.dstack((rob_states[1:], smodel_states_pred))
 
-        idx = 0
-        corrected_done = False
-        while idx < nsteps:
-            for state_type in ["corrected", "predicted"]:
-                # Plot raw gt_frames on first axis
-                ax[0].imshow(agent_ep_history['gt_frame'][idx])
-                # Turn off the mpl px units imshow axes
-                ax[0].axis('off')
-                ax[0].set_title('{0} frame'.format(self.task_name.capitalize()))
-                # Fetch GT rob_state at time idx
-                rob_state = rob_states[idx][0, :]
-                # Make a window and state overlay for every model
-                for jdx, smodel in enumerate(self.model_names):
-                    # Decide whether to plot corrected state or predicted state in this iteration
-                    if state_type == 'corrected' or idx == 0:
-                        # Augmented state with rob_state added
-                        smodel_aug_state = smodel_aug_states[idx][0, :]
-                        corrected_done = True
-                    elif state_type == 'predicted' and idx > 0:
-                        smodel_aug_state = smodel_aug_pred_states[idx][0, :]
-                        corrected_done = False
-                    smodel_frame = model_ep_histories[smodel]['masked_frame'][idx]
-                    # Display the masked frame for this smodel on an image axis
-                    ax[jdx + 1].imshow(smodel_frame)
-                    # Turn off mpl px units axes
-                    ax[jdx + 1].axis('off')
-                    ax[jdx + 1].set_title('{0} smodel state'.format(smodel.capitalize()), size=12)
-                    # Overlay smodel state on imag axis, only with a single frame at time t
-                    #  and no frame at time t-1
-                    overlay_fn_dict[smodel](ax[jdx + 1], smodel_aug_state, display_t_only=True)
-                    # Overlay robot state as a Red dot on image
-                    self.smodel_vizs[smodel].overlay_rob_state(ax[jdx + 1], rob_state, color='r', display_t_only=True)
+        for idx in range(nsteps):
+            # Plot raw gt_frames on first axis
+            ax[0].imshow(agent_ep_history['gt_frame'][idx])
+            # Turn off the mpl px units imshow axes
+            ax[0].axis('off')
+            ax[0].set_title('{0} frame'.format(self.task_name.capitalize()))
+            # Fetch GT rob_state at time idx
+            rob_state = rob_states[idx][0, :]
+
+            # Make a window and state overlay for every model
+            for jdx, smodel in enumerate(self.model_names):
+                smodel_aug_state = np.hstack((rob_state, model_ep_histories[smodel]['mu_z'][idx][0, :]))
+                smodel_frame = model_ep_histories[smodel]['masked_frame'][idx]
+                # Display the masked frame for this smodel on an image axis
+                ax[jdx + 1].imshow(smodel_frame)
+                # Turn off mpl px units axes
+                ax[jdx + 1].axis('off')
+                ax[jdx + 1].set_title('{0} smodel state'.format(smodel.capitalize()), size=12)
+                # Overlay smodel state on imag axis, only with a single frame at time t
+                #  and no frame at time t-1
+                self.overlay_fns[smodel](ax[jdx + 1], smodel_aug_state, display_t_only=True)
                 # Blank sup-title for right spacing
                 fig.suptitle("".format(self.task_name.capitalize()), size=14)
 
-                # Must invoke tight_layout after putting everything on mpl canvas
-                if first_frame:
-                    fig.tight_layout()
-                    first_frame = False
-                # Save temporary png file frames in designated folder
-                self.figure_saver.save_fig(fig, save_dir, nsaves=1)
+            # Must invoke tight_layout after putting everything on mpl canvas
+            if first_frame:
+                fig.tight_layout()
+                first_frame = False
 
-                # Clear all axes for next frame
-                for jdx in range(naxes):
-                    ax[jdx].cla()
-            if corrected_done:
-                idx += 1
+            # Save temporary png file frames in designated folder
+            self.figure_saver.save_fig(fig, save_dir, nsaves=1)
+
+            # Clear all axes for next frame
+            for kdx in range(1, naxes):
+                ax[kdx].cla()
+
+        fig.clear()
+        plt.close()
+        return
+
+    def observed_state_on_frames(self, save_dir: str, agent_ep_history: Dict, model_ep_histories: Dict):
+        """
+        Plot gt_frame (from agent), and filtered simple model states over-layed on their segmented images side by side
+        :param save_dir: Dir to save results in
+        :param agent_ep_history: Contains data for keys defined in BaseAgent
+        :param model_ep_histories: data for keys defined in SimpModBook
+        :return:
+        """
+        # Number of axes in plot
+        naxes = self.nmodels + 1
+        fig = plt.figure(figsize=(5 * naxes, 5))
+        ax = fig.subplots(1, naxes)
+        # First frame flag, only apply tight_layout to 1 frame
+        first_frame = True
+
+        # Infer number of time-steps in episode from data
+        nsteps = len(agent_ep_history['action'])
+
+        # Fetch rob states from agent episode data, shape: nsteps x 1 x rob_dim
+        rob_states = agent_ep_history['gt_rob_state']
+
+        for idx in range(nsteps):
+            # Plot raw gt_frames on first axis
+            ax[0].imshow(agent_ep_history['gt_frame'][idx])
+            # Turn off the mpl px units imshow axes
+            ax[0].axis('off')
+            ax[0].set_title('{0} frame'.format(self.task_name.capitalize()))
+            # Fetch GT rob_state at time idx
+            rob_state = rob_states[idx][0, :]
+
+            # Make a window and state overlay for every model
+            for jdx, smodel in enumerate(self.model_names):
+                smodel_state = model_ep_histories[smodel]['mu_y'][idx][0, :]
+                smodel_aug_state = np.hstack((rob_state, smodel_state))
+                smodel_frame = model_ep_histories[smodel]['masked_frame'][idx]
+                # Display the masked frame for this smodel on an image axis
+                ax[jdx + 1].imshow(smodel_frame)
+                # Turn off mpl px units axes
+                ax[jdx + 1].axis('off')
+                ax[jdx + 1].set_title('{0} smodel state'.format(smodel.capitalize()), size=12)
+                # Overlay smodel state on imag axis, only with a single frame at time t
+                #  and no frame at time t-1
+                self.overlay_fns[smodel](ax[jdx + 1], smodel_aug_state, display_t_only=True)
+                # Blank sup-title for right spacing
+                fig.suptitle("".format(self.task_name.capitalize()), size=14)
+
+            # Must invoke tight_layout after putting everything on mpl canvas
+            if first_frame:
+                fig.tight_layout()
+                first_frame = False
+
+            # Save temporary png file frames in designated folder
+            self.figure_saver.save_fig(fig, save_dir, nsaves=1)
+
+            # Clear all axes for next frame
+            for kdx in range(1, naxes):
+                ax[kdx].cla()
+
+        fig.clear()
+        plt.close()
+        return
+
+    def predicted_state_on_frames(self, save_dir: str, agent_ep_history: Dict, model_ep_histories: Dict):
+        """
+        Plot gt_frame (from agent), and predicted simple model states over-layed on their segmented images side by side
+        :param save_dir: Dir to save results in
+        :param agent_ep_history: Contains data for keys defined in BaseAgent
+        :param model_ep_histories: data for keys defined in SimpModBook
+        :return:
+        """
+        # Number of axes in plot
+        naxes = self.nmodels + 1
+        fig = plt.figure(figsize=(5 * naxes, 5))
+        ax = fig.subplots(1, naxes)
+        # First frame flag, only apply tight_layout to 1 frame
+        first_frame = True
+
+        # Infer number of time-steps in episode from data
+        nsteps = len(agent_ep_history['action'])
+
+        # Fetch rob states from agent episode data, shape: nsteps x 1 x rob_dim
+        rob_states = agent_ep_history['gt_rob_state']
+
+        for idx in range(nsteps - 1):
+            # Plot raw gt_frames on first axis
+            ax[0].imshow(agent_ep_history['gt_frame'][idx + 1])
+            # Turn off the mpl px units imshow axes
+            ax[0].axis('off')
+            ax[0].set_title('{0} frame'.format(self.task_name.capitalize()))
+            # Fetch GT rob_state at time idx
+            rob_state = rob_states[idx + 1][0, :]
+
+            # Make a window and state overlay for every model
+            for jdx, smodel in enumerate(self.model_names):
+                smodel_aug_state = np.hstack((rob_state, model_ep_histories[smodel]['mu_z_pre'][idx][0, :]))
+                smodel_frame = model_ep_histories[smodel]['masked_frame'][idx + 1]
+                # Display the masked frame for this smodel on an image axis
+                ax[jdx + 1].imshow(smodel_frame)
+                # Turn off mpl px units axes
+                ax[jdx + 1].axis('off')
+                ax[jdx + 1].set_title('{0} smodel state'.format(smodel.capitalize()), size=12)
+                # Overlay smodel state on imag axis, only with a single frame at time t
+                #  and no frame at time t-1
+                self.overlay_fns[smodel](ax[jdx + 1], smodel_aug_state, display_t_only=True)
+                # Blank sup-title for right spacing
+                fig.suptitle("".format(self.task_name.capitalize()), size=14)
+
+            # Must invoke tight_layout after putting everything on mpl canvas
+            if first_frame:
+                fig.tight_layout()
+                first_frame = False
+
+            # Save temporary png file frames in designated folder
+            self.figure_saver.save_fig(fig, save_dir, nsaves=1)
+
+            # Clear all axes for next frame
+            for kdx in range(1, naxes):
+                ax[kdx].cla()
 
         fig.clear()
         plt.close()

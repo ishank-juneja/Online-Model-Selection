@@ -44,6 +44,9 @@ class SimpleModViz:
         # Delta t between consecutive frames
         self.dt = None
 
+        # Load in camera matrix
+        self.cam_mat = np.load(self.config.cam_mat_path)
+
     def set_nframes(self, nframes: int):
         """
         Number of stacked frames viz deals with
@@ -132,7 +135,7 @@ class SimpleModViz:
         :return:
         """
         # Cam matrix for projecting points from world to pixel space
-        cam_mat = np.load(self.config.cam_mat_path)
+        cam_mat = self.cam_mat
         # Homogenous world coordinates for ball
         ball_world = np.array([observed_state[0], 0.0, observed_state[1], 1.0])
         ball_pixel = cam_mat @ ball_world
@@ -167,7 +170,7 @@ class SimpleModViz:
         :return:
         """
         # Cam matrix for projecting points from world to pixel space
-        cam_mat = np.load(self.config.cam_mat_path)
+        cam_mat = self.cam_mat
         # Homogenous world coordinates for cart and mass
         self.carty = 0.0
         cart_world = np.array([observed_state[0], 0.0, self.carty, 1.0])
@@ -230,7 +233,7 @@ class SimpleModViz:
         :return:
         """
         # Cam matrix for projecting points from world to pixel space
-        cam_mat = np.load(self.config.cam_mat_path)
+        cam_mat = self.cam_mat
         # Homogenous world coordinates for cart and mass
         self.carty = 0.0
         cart_world = np.array([observed_state[0], 0.0, self.carty, 1.0])
@@ -298,7 +301,7 @@ class SimpleModViz:
         :return:
         """
         # Cam matrix for projecting points from world to pixel space
-        cam_mat = np.load(self.config.cam_mat_path)
+        cam_mat = self.cam_mat
 
         # Car geometric center, car moves in x-y plane
         car_x = observed_state[0]

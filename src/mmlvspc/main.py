@@ -77,7 +77,7 @@ def main(args):
     agent.save_episode_data(ep_file_path)
     agent_ep_history, smodels_ep_histories = agent.load_episode_data(ep_file_path)
     # Assemble plotting function kwargs
-    kwargs = {'viz_type': 'smodel_frames',
+    kwargs = {'viz_name': 'filtered_state_on_frames',
               'agent_ep_history': agent_ep_history,
               'model_ep_histories': smodels_ep_histories,
               'save_dir': dir_manager.get_abs_path('tmp'),

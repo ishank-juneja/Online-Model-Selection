@@ -7,7 +7,6 @@ import gym
 import gym_cenvs
 import matplotlib.pyplot as plt
 import numpy as np
-from src.plotting import SimpleModViz
 import time
 
 
