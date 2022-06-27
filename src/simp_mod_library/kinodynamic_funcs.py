@@ -94,145 +94,133 @@ class BaseDynamics(nn.Module, metaclass=ABCMeta):
         return new_var
 
 
-class CartpoleDynamics(BaseDynamics):
-    """
-    The known closed form dynamics for Cartpole
-    # Sources
-    # https://ocw.mit.edu/courses/6-832-underactuated-robotics-spring-2009/72bc06c4dc73315bf49c28a81dc2b996_MIT6_832s09_read_ch03.pdf
-    # https://ocw.mit.edu/courses/6-832-underactuated-robotics-spring-2009/
-    """
-    def __init__(self, device: str = 'cuda:0', log_normal_params: bool = False):
-        super(CartpoleDynamics, self).__init__(device=device, log_normal_params=log_normal_params)
+class CartpoleDynamics(nn.Module):
 
-        # Number of states and actions in dynamics
-        self.nx = 6
-        self.nu = 1
+    def __init__(self, params_in_state=False, device='cuda:0', log_normal_params=False):
+        super(CartpoleDynamics, self).__init__()
+        self.dt = torch.tensor(0.05, device=device)
+        self.g = torch.tensor(9.81, device=device)
+        self.pi = torch.tensor(np.pi, device=device)
+        self.device = device
+        self.trig = True
+        self.linear_damping = torch.tensor(0.2, device=device)
 
-        # Doesn't make much difference so hard-coded to fixed value, not learned
-        self.linear_damping = torch.tensor(0.2, device=self.device)
+        if not params_in_state:
+            self.cart_mass = torch.tensor(1.0, device=device)
+            self.pole_mass = torch.tensor(1.0, device=device)
+            self.angular_damping = torch.tensor(0.1, device=device)
 
-        # Unknown cartpole dynamics parameters defaults as floats
-        self.pole_mass_def = 1.0
-        self.angular_damping_def = 0.1
-        self.rob_mass_def: float = 1.0
+        self.log_normal_params = log_normal_params
+        self.params = params_in_state
 
-        # Init all the learned dynamics params tensors to defaults
-        self.rob_mass = torch.tensor(self.rob_mass_def, device=self.device)
-        self.pole_mass = torch.tensor(self.pole_mass_def, device=self.device)
-        self.angular_damping = torch.tensor(self.angular_damping_def, device=self.device)
+        self.update_delta = 1.0
 
     def reset_params(self):
-        self.rob_mass = torch.tensor(self.rob_mass_def, device=self.device)
-        self.pole_mass = torch.tensor(self.pole_mass_def, device=self.device)
-        self.angular_damping = torch.tensor(self.angular_damping_def, device=self.device)
+        self.cart_mass = torch.tensor(1.0, device=self.device)
+        self.pole_mass = torch.tensor(1.0, device=self.device)
+        self.angular_damping = torch.tensor(0.1, device=self.device)
 
     def set_params(self, params):
         if self.log_normal_params:
-            # If the params are the log of the actual values exponentiate ...
-            transformed = self.log_transform(params)
-            mp = transformed[0]
-            mc = transformed[1]
-            # The prior on b1 is 0.1 but for uniformity in the sys_id grad-descent optimizer
-            #  we pretend to the outside world that the value is 10x so we can use the same optimization hparams
-            b1 = 0.1 * transformed[2]
+            mp, mc, b1 = self.log_transform(params)
         else:
-            raise NotImplementedError("Non log normal params are not implemented for Cartpole")
+            mp, mc, b1 = params
 
         self.pole_mass = mp
-        self.rob_mass = mc
+        self.cart_mass = mc
         self.angular_damping = b1
 
     def get_params(self):
         if self.log_normal_params:
             mp = self.pole_mass.log()
-            mc = self.rob_mass.log()
-            # The prior on b1 is 0.1 but for uniformity in the sys_id grad-descent optimizer
-            #  we pretend to the outside world that the value is 10x so we can use the same optimization hparams
+            mc = self.cart_mass.log()
             b1 = (10 * self.angular_damping).log()
         else:
-            # TODO: Remove the non-log case if not being used so this goes away...
-            raise NotImplementedError("Non log normal params are not implemented for Cartpole")
+            mp = self.pole_mass
+            mc = self.cart_mass
+            b1 = self.angular_damping
 
         return torch.stack((mp, mc, b1), dim=0)
 
-    def forward(self, state, action):
-        """
-        Propagate state and action via cartpole dynamics
-        :param state: [x_rob, dot{x}_rob (Formerly x_cart and v_cart), x_mass, y_mass, dot{x}_mass, dot{y}_mass]
-        :param action: Force on cart in N
-        :return:
-        """
-        # Preprocess variables and view them as 2D tensors (instead of just vectors)
-        x_rob = state[:, 0].view(-1, 1)
-        # x and y positions of mass
-        xmass = state[:, 2].view(-1, 1)
-        ymass = state[:, 3].view(-1, 1)
-        # x_rob_dot == v_cart == v_robot
-        x_rob_dot = state[:, 1].view(-1, 1)
-        # x and y velocities of mass
-        xmass_dot = state[:, 4].view(-1, 1)
-        ymass_dot = state[:, 5].view(-1, 1)
+    def log_transform(self, params):
+        mp = torch.exp(params[0])
+        mc = torch.exp(params[1])
+        b1 = 0.1 * torch.exp(params[2])
+        return mp, mc, b1
 
-        dx = xmass - x_rob  # mass-cart x_rob-distance
-        # Setup such that acute angles are measured from downward pointing vertical
-        dy = self.y_cart - ymass    # mass-cart y-distance
-        theta = torch.atan2(dx, dy) # Pole angle from downward pointing direction
+    def forward(self, state, action):
+        # STATE INPUT: x, x_end, y_end, x_dot, theta_dot
+
+        # Preprocess variables
+        x = state[:, 0].view(-1, 1)
+        xmass = state[:, 1].view(-1, 1)
+        ymass = state[:, 2].view(-1, 1)
+        x_dot = state[:, 3].view(-1, 1)
+        theta_dot = state[:, 4].view(-1, 1)
+
+        # Get angle and length
+        dx = xmass - x
+        theta = torch.atan2(dx, -ymass)
         sintheta = torch.sin(theta)
         costheta = torch.cos(theta)
-        # Geom. length of the pole of the cartpole
-        l = (dx**2 + dy**2).sqrt()
-        # Compute angular velocity theta_dot from linear vel., l, and sin/cos thetas
-        #  Theta dot can be estimated separately from xmass_dot and ymass_dot
-        est_x = xmass_dot / (l * costheta)
-        est_y = ymass_dot / (l * sintheta)
-        theta_dot = (est_x + est_y) / 2
+        l = (dx**2 + ymass**2).sqrt()
 
-        mp = self.pole_mass
-        mc = self.rob_mass  # Cart and robot are one and the same for the cartpole model
-        b1 = self.angular_damping
-        # Not sys-ided since less important
+        # Dynamic parameters
+        if self.params:
+            mp = state[:, 5].view(-1, 1)
+            mc = state[:, 6].view(-1, 1)
+            b1 = state[:, 7].view(-1, 1)
+
+            if self.log_normal_params:
+                mp = torch.exp(mp)
+                mc = torch.exp(mc)
+                b1 = 0.1 * torch.exp(b1)
+        else:
+            mp = self.pole_mass
+            mc = self.cart_mass
+            b1 = self.angular_damping
+
         b2 = self.linear_damping
 
         g = self.g
-
-        # Clamp action magnitude just like it is clamped on complex object environment
-        force = self.gear * action.clamp(min=-1, max=1)
+        force = -40.0 * action.clamp(min=-1, max=1)
 
         # Do dynamics
         tmp = l * (mc + mp * sintheta * sintheta)
-        # Acceleration of cart (point robot welded to cart)
-        x_rob_acc = (force * l + mp * l * sintheta * (l * theta_dot * theta_dot + g * costheta) +
-                     costheta * b1 * theta_dot - l * b2 * x_rob_dot) / tmp
+        xacc = (force * l + mp * l * sintheta * (l * theta_dot * theta_dot + g * costheta) +
+                costheta * b1 * theta_dot - l * b2 * x_dot) / tmp
 
         thetaacc = (-force * costheta -
                     mp * l * theta_dot * theta_dot * sintheta * costheta -
-                    (mc + mp) * g * sintheta + b2 * x_rob_dot * costheta - (mc + mp) * b1 * theta_dot) / tmp
+                    (mc + mp) * g * sintheta + b2 * x_dot * costheta - (mc + mp) * b1 * theta_dot) / tmp
 
-        # Propagate all the state variables using the qty and its derivative
-        new_x_rob_dot = self.propagate(x_rob_dot, x_rob_acc)
-        new_theta_dot = self.propagate(theta_dot, thetaacc)
-        # The derivative for the static qts is averaged between cur and next
-        new_x_rob = self.propagate(x_rob, 0.5 * (x_rob_dot + new_x_rob_dot))
-        new_theta = self.propagate(x_rob, 0.5 * (theta_dot + new_theta_dot))
+        # Fillout new values
+        new_x_dot = x_dot + self.dt * xacc
+        new_theta_dot = theta_dot + self.dt * thetaacc
 
-        # Cache trig functions of new theta
-        new_sintheta = torch.sin(new_theta)
-        new_costheta = torch.cos(new_theta)
+        new_x = x + 0.5 * self.dt * (x_dot + new_x_dot)
+        theta = theta + 0.5 * self.dt * (theta_dot + new_theta_dot)
 
-        # New mass coordinates
-        new_xmass = new_x_rob + l * new_sintheta
-        new_ymass = -l * new_costheta
+        new_xmass = new_x + l * torch.sin(theta)
+        new_ymass = -l * torch.cos(theta)
 
-        vlim = self.vlim
-        new_theta_dot = new_theta_dot.clamp(min=vlim, max=vlim)
-        new_x_rob_dot = new_x_rob_dot.clamp(min=vlim, max=vlim)
+        vlim = 20
+        new_theta_dot = new_theta_dot.clamp(min=-vlim, max=vlim)
+        new_x_dot = new_x_dot.clamp(min=-vlim, max=vlim)
 
-        # Use computed theta_dot to get estimates for next dot_{x/y}_mass
-        new_dot_xmass = l * new_costheta * new_theta_dot
-        new_dot_ymass = l * new_sintheta * new_theta_dot
+        if self.params:
+            if self.log_normal_params:
+                mp = torch.log(mp)
+                mc = torch.log(mc)
+                b1 = torch.log(b1 / 0.1)
 
-        next_state = torch.cat((new_x_rob, new_x_rob_dot, new_xmass, new_ymass, new_dot_xmass, new_dot_ymass), dim=1)
-        return next_state
+            state = torch.cat((new_x, new_xmass, new_ymass, new_x_dot, new_theta_dot,
+                               mp, mc, b1), 1)
+
+        else:
+            state = torch.cat((new_x, new_xmass, new_ymass, new_x_dot,  new_theta_dot), 1)
+
+        return state
 
 
 class BallDynamics(BaseDynamics):

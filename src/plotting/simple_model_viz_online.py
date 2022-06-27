@@ -66,7 +66,7 @@ class SMVOnline(SimpleModViz):
         """
         Override overlay function for cartpole to account for different state representation
         :param img_axis:
-        :param online_state: Cartpole state rep: [rob_x, rob_v, x_mass, y_mass, v_cart, vx_mass, vy_mass]
+        :param online_state: Cartpole state rep: [rob_x, x_mass, y_mass, rob_v, theta_dot_mass]
         :param alpha:
         :param color:
         :param display_t_only:
@@ -76,11 +76,11 @@ class SMVOnline(SimpleModViz):
         #  cartpole state format of [x_cart, x_mass, y_mass, v_cart, vx_mass, vy_mass]
         # Allocate container to hold unscrambled online state, same dims as offline
         offline_state = np.copy(online_state)
-        offline_state[1] = online_state[2]
-        offline_state[2] = online_state[3]
-        offline_state[3] = online_state[1]
+        # offline_state[1] = online_state[2]
+        # offline_state[2] = online_state[3]
+        # offline_state[3] = online_state[1]
         super(SMVOnline, self).overlay_cartpole_state(img_axis, offline_state, alpha, color, display_t_only)
         # Overlay rob state ...
-        rob_state = online_state[:2]
-        self.overlay_rob_state(img_axis, rob_state, alpha, color=color, display_t_only=display_t_only)
+        # rob_state = online_state[:2]
+        # self.overlay_rob_state(img_axis, rob_state, alpha, color=color, display_t_only=display_t_only)
         return

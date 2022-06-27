@@ -2,165 +2,164 @@ import os
 import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
-from gym_cenvs.envs.base import MujocoBase
+
+from mujoco_py.generated import const
+from src.config import SegConfig, CommonEncConfig
 
 
-class Cartpole(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
-    def __init__(self, for_ball: bool = False, invisible_rod: bool = False):
-        xml_path = os.path.abspath('gym_cenvs/assets/cartpole.xml')
+class Cartpole(mujoco_env.MujocoEnv, utils.EzPickle):
 
-        # - - - - - Init Attributes Prior since some needed for model creation - - - - - -
-        self.for_ball = for_ball
-        self.invisible_rod = invisible_rod
-        # Episode/task of a contiguous trajectory complete?
+    def __init__(self, fixed_environment=False):
+        xml_path = os.path.join(os.path.dirname(__file__), '../assets/cartpole.xml')
+        self.goal_x = 0
+        self.goal_y = 0
+        self.length = 1.0
         self.done = False
-        # Fixed initial plen/2
-        self.psemilength = 0.5
-        # Updated based on currently being used
-        self.plength_cur = 1.0
-        self.pwidth = 0.1
-        self.mradius = 0.2
-        self.randomize = True
-        # Maximum perturbations to semi length
-        self.plength_max_sub = 0.2
-        self.plength_max_add = 0.25
-        self.pwidth_maxd = 0.05
-        # - - - - - - - - - - - - - - - -
-        MujocoBase.__init__(self)
-        mujoco_env.MujocoEnv.__init__(self, xml_path, frame_skip=1)
+        mujoco_env.MujocoEnv.__init__(self, xml_path, 1)
         utils.EzPickle.__init__(self)
-        # Must come after model init
+
+        # Image sizes used by encoders and by camera matrix for eventual overlay
+        self.enc_config = CommonEncConfig()
+
+        self.randomize = not fixed_environment
         self.reset_model()
-        # Create camera matrix for projection
-        self.cam_matrix = self.get_cam_mat()
-        # 0 position is straight up in xml file
         self.init_qpos[1] += np.pi
         self.init_qpos[0] += 1.00
 
     def randomize_geometry(self):
         # zero state
-        self.set_state(self.init_qpos, self.init_qvel)
-        # Randomize changes via uniform delta perturbations
-        pole_dlength = self.np_random.uniform(low=-self.plength_max_sub, high=self.plength_max_add)
-        pole_dwidth = self.np_random.uniform(low=-self.pwidth_maxd, high=self.pwidth_maxd)
-        # Make sure mass radius never goes below pole width
-        mass_pole_diff = (pole_dwidth + self.pwidth) - self.mradius
-        # pick low < 0.0, and mass only gets smaller
-        mass_dradius = self.np_random.uniform(low=mass_pole_diff + self.pwidth_maxd, high=0.0)
-        # Overwrite default 2D geom sizes from the .xml file
-        self.sim.model.geom_size[self.sim.model.geom_name2id('gpole')] = [self.pwidth + pole_dwidth, self.psemilength + pole_dlength, 0.0]
-        self.sim.model.geom_size[self.sim.model.geom_name2id('gmass')] = [self.mradius + mass_dradius, self.mradius + mass_dradius, 0.0]
-        # self.sim.model.geom_size[self.sim.model.geom_name2id('gcart')] = [0.1, 0.5, 0.0]
-        # Local position of center of mass of the pole in cart (parent) frame
-        self.sim.model.body_ipos[self.sim.model.body_name2id('pole')] = [0.0, 0.0, self.psemilength + pole_dlength]
-        # Position offset wrt parent body
-        self.sim.model.body_pos[self.sim.model.body_name2id('mass')] = [0.0, 0.0, 2 * (self.psemilength + pole_dlength)]
-        # Update length for state calculation
-        self.plength_cur = 2 * (self.psemilength + pole_dlength)
+        self.set_state(
+            self.init_qpos,
+            self.init_qvel
+        )
+        # Randomize changes
+        pole_dlength = self.np_random.uniform(low=-0.2, high=0.25)
+        pole_dwidth = self.np_random.uniform(low=-0.05, high=0.05)
+        mass_pole_diff = (pole_dwidth + 0.1) - 0.2
+        mass_dradius = self.np_random.uniform(low=mass_pole_diff + 0.05, high=0.0)
 
-    def randomize_color(self):
-        # Generate random index
-        randidx = self.np_random.choice(a=self.ncolors)
-        randjdx = self.np_random.choice(a=self.ncolors)
-        if self.invisible_rod:
-            rod_color = (0, 0, 0, 0)
-        else:
-            rod_color = self.color_options[randidx]
-        self.sim.model.geom_rgba[self.sim.model.geom_name2id('gpole')] = rod_color
-        mass_color = self.color_options[randjdx]
-        self.sim.model.geom_rgba[self.sim.model.geom_name2id('gmass')] = mass_color
-        # self.model.geom_rgba[self.sim.model.geom_name2id('gcart')] = (1, 0, 1, 1)
+        self.sim.model.geom_size[self.sim.model.geom_name2id('gpole')] = [0.1 + pole_dwidth, 0.5 + pole_dlength, 0.0]
+        self.sim.model.geom_size[self.sim.model.geom_name2id('gmass')] = [0.2 + mass_dradius, 0.2 + mass_dradius, 0.]
 
-    def step(self, action: float):
-        action = np.clip(action, -1.0, 1.0)
-        # Getting state before simulation step and observed frame after is a work around to 1-step delayed obs frame
+        # Update positions
+        self.sim.model.body_ipos[self.sim.model.body_name2id('pole')] = [0.0, 0.0, 0.5 + pole_dlength]
+        self.sim.model.body_pos[self.sim.model.body_name2id('mass')] = [0.0, 0.0, 1 + 2 * pole_dlength]
+
+        # Update length for state
+        self.length = 1.0 + 2 * pole_dlength
+
+    def step(self, action):
         state = self._get_state()
+        action = np.clip(action, -1.0, 1.0)
         self.do_simulation(action, self.frame_skip)
         ob = self._get_obs()
-        # Also terminate if the cart/slider joint goes out of the sim camera FOV
-        out_of_view = np.abs(self.sim.data.qpos[0]) > 1.7 # Earlier tried 2.5
-        # self.done is never set to True since there is no task
-        done = out_of_view or self.done
-        # dummy cost
-        cost = 0.0
-        return ob, -cost, done, {'success': self.done, 'state': state}
+        goal_cost, centre_cost = self.get_cost()
+        link_collide = self.collision_check()
 
-    # State is [x_cart, x_mass, y_mass, v_cart, vx_mass, vy_mass]
-    # x_mass and y_mass here are the (x, y (or rather z)) of the contact between the mass and the rope
-    # Sign of x components is flipped so that the sign is consistent with a std. x-y coordinate plane,
-    # though technically an x-z plane
-    def _get_state(self):
-        # Get current mass location in world frame
-        cart_x = self.sim.data.qpos[0]
-        mass_x = cart_x + self.plength_cur * np.sin(self.sim.data.qpos[1])
-        cart_y = 0.0
-        mass_y = cart_y + self.plength_cur * np.cos(self.sim.data.qpos[1])
+        self.done = self.done or (link_collide == 1)
+        out_of_scope = (np.abs(self.sim.data.qpos[0]) > 2.5)
+        done = out_of_scope or self.done or link_collide
+        fail_cost = 100.0 if out_of_scope or (link_collide == 2) else 0.0
+        return ob, -(goal_cost + centre_cost + fail_cost), done, {'success': self.done, 'state' : state}
 
-        # - - - - - - - - - - -
-        # # Find current angular location
-        # theta_cur = np.arctan2(mass_x - cart_x, mass_y)
-        theta_cur = self.sim.data.qpos[1]
+    def collision_check(self):
+        # 0 for no collision
+        # 1 for successful collision (target and mass)
+        # 2 for unsuccessful collision (target and pole)
+        success = 0
+        fail = 0
+        for ncon in range(self.data.ncon):
+            con = self.sim.data.contact[ncon]
+            g1 = self.sim.model.geom_id2name(con.geom1)
+            g2 = self.sim.model.geom_id2name(con.geom2)
 
-        # Theta previous (wrap around taken care of by trig functions subsequently)
-        # theta based angular velocity replaced with linear velocities in state representation
-        theta_prev = theta_cur - self.sim.data.qvel[1] * self.dt
-        # Location of cart in previous state
-        prev_cart_x = cart_x - self.sim.data.qvel[0] * self.dt
+            geom_concat = g1 + g2
 
-        prev_mass_x = prev_cart_x + self.plength_cur * np.sin(theta_prev)
-        cart_y = 0.0
-        prev_mass_y = cart_y + self.plength_cur * np.cos(theta_prev)
+            if "target" in geom_concat:
+                if "mass" in geom_concat:
+                    success = 1
+                if ("pole" in geom_concat) or ("cart" in geom_concat):
+                    fail = 1
 
-        # We manually compute velocity this way since using tip speed with R*\dot{\theta} was giving problems
-        # # - - - - - - - - - - -
-        # Compute speed of end of pole in cartpole
-        # cp_tip_speed = self.sim.data.qvel[1] * self.plength_cur
-        # cpx = cp_tip_speed * np.sin(self.sim.data.qpos[1]) + self.sim.data.qvel[0]
-        # cpx = cp_tip_speed * np.cos(self.sim.data.qpos[1])
-        # cpy = cp_tip_speed * np.cos(self.sim.data.qpos[1])
-        # Note: Making theta_dot part of state is avoided since the NN struggles to learn theta_dot
-        vel_mass_x = (mass_x - prev_mass_x) / self.dt
-        vel_mass_y = (mass_y - prev_mass_y) / self.dt
+        if success:
+            return 1
+        if fail:
+            return 2
+        return 0
 
-        if not self.for_ball:
-            _st = np.array([
-                self.sim.data.qpos[0],  # cart x pos
-                self.sim.data.qpos[0] + self.plength_cur * np.sin(self.sim.data.qpos[1]),   # l*sin(theta) + cart_x
-                0.0 + self.plength_cur * np.cos(self.sim.data.qpos[1]), # l*cos(theta)
-                np.clip(self.sim.data.qvel[0], -20, 20),    # v_cart
-                np.clip(vel_mass_x, -20, 20),
-                np.clip(vel_mass_y, -20, 20)
-            ])
-        else:
-            _st = np.concatenate([
-                -self.sim.data.qpos[0] + self.plength_cur * np.sin(self.sim.data.qpos[1:] - np.pi),
-                # l * sin(theta) + cart_x
-                -self.plength_cur * np.cos(self.sim.data.qpos[1:] - np.pi)  # l*cos(theta)
-            ]).ravel()
-        return _st
+    def get_cost(self):
+        x, y = self._get_state()[1:3]
+        # Penalty to goal
+        goal_cost = (x - self.goal_x)**2 + (y - self.goal_y) ** 2
+        xx = self.sim.data.qpos[0]
+        centre_cost = np.clip(np.abs(xx) - 1.0, 0.0, None)
+        return goal_cost, centre_cost
+
+    def get_goal(self):
+        return [self.goal_x, self.goal_y]
 
     def _get_obs(self):
-        size_ = self.seg_config.imsize
-        return self.render(mode='rgb_array', width=size_, height=size_, camera_id=0)
+        return self.render(mode='rgb_array', width=64, height=64, camera_id=0)
+
+    def _get_state(self):
+        # State is [x_cart, x_mass, y_mass, v_cart, theta_dot_mass]
+        return np.concatenate([
+            -self.sim.data.qpos[:1],  # cart x pos
+            -self.sim.data.qpos[0] + self.length * np.sin(self.sim.data.qpos[1:] - np.pi),
+            -self.length * np.cos(self.sim.data.qpos[1:] - np.pi),
+            np.clip(self.sim.data.qvel, -20, 20) * np.array([-1, 1]),
+            np.clip(self.sim.data.qfrc_constraint, -10, 10)
+        ]).ravel()
 
     def reset(self):
         self.done = False
         if self.randomize:
             self.randomize_geometry()
-            self.randomize_color()
         return self.reset_model()
 
     def reset_model(self):
-        # Flip a coin to decide whether cartpole starts pointing up or down, can be replaced by uniform 360deg init
-        coin = self.np_random.randint(0, 2)
-        if coin:
-            self.init_qpos[1] = np.pi
-        else:
-            self.init_qpos[1] = 0.0
-        # Set joint angles and velocities
         self.set_state(
             np.concatenate((self.init_qpos[0] + self.np_random.uniform(low=-1.5, high=1.5, size=1),
                             self.init_qpos[1] + self.np_random.uniform(low=0.25 * -np.pi, high=0.25 * np.pi, size=1))),
             self.init_qvel + self.np_random.randn(self.model.nv) * .1
         )
+        initial_cost = 0.0
+        # Now want the problem to be non trivial - can't start at goal, so will just
+        # Rejection sample goal
+        while initial_cost < .75:
+            self.goal_x = np.random.uniform(low=0.0, high=1.5)
+            self.goal_y = np.random.uniform(low=-1.0, high=.1)
+            initial_cost, _ = self.get_cost()
+
+        self.sim.model.body_pos[self.sim.model.body_name2id('target')] = [-self.goal_x, 0, self.goal_y]
         return self._get_obs()
+
+    def viewer_setup(self):
+        v = self.viewer
+        v.cam.trackbodyid = 0
+        v.cam.distance = self.model.stat.extent * 0.5
+        v.cam.lookat[2] = 0.12250000000000005  # v.model.stat.center[2]
+
+    # https://github.com/deepmind/dm_control/blob/87e046bfeab1d6c1ffb40f9ee2a7459a38778c74/dm_control/mujoco/engine.py#L686
+    def get_cam_mat(self):
+        # Width and height in pixel units
+        width = height = self.enc_config.imsize
+        camera_id = 0
+        pos = self.data.cam_xpos[camera_id]
+        rot = self.data.cam_xmat[camera_id].reshape(3, 3).T
+        fov = self.model.cam_fovy[camera_id]
+        # Translation matrix (4x4).
+        translation = np.eye(4)
+        translation[0:3, 3] = -pos
+        # Rotation matrix (4x4).
+        rotation = np.eye(4)
+        rotation[0:3, 0:3] = rot
+        # Focal transformation matrix (3x4).
+        focal_scaling = (1. / np.tan(np.deg2rad(fov) / 2)) * height / 2.0
+        focal = np.diag([focal_scaling, focal_scaling, 1.0, 0])[0:3, :]
+        # Image matrix (3x3).
+        # This is correct since matplotlib/np array viz is -0.5 to 63.5 for a 64x64 image
+        image = np.eye(3)
+        image[0, 2] = (width - 1) / 2.0
+        image[1, 2] = (height - 1) / 2.0
+        return image @ focal @ rotation @ translation

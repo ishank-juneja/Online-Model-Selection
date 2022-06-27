@@ -56,10 +56,10 @@ def main(args):
         dyn = BallDynamics(device='cpu')
     elif args.smodel == 'cartpole':
         # Cartpole environment, state representation:
-        # [x_cart, x_mass, y_mass, v_cart, vx_mass, vy_mass]
+        # [x_cart, x_mass, y_mass, v_cart, theta_dot_mass]
         env = gym.make("MujocoCartpole-v0")
-        # state format: [x_cart, v_cart, x_mass, y_mass, vx_mass, vy_mass]
-        indices_list = [0, 3, 1, 2, 4, 5]
+        # state format: same
+        indices_list = [0, 1, 2, 3, 4]
         dyn = CartpoleDynamics(device='cpu')
     else:
         raise NotImplementedError

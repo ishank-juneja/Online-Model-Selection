@@ -37,7 +37,7 @@ class SMVKDTest(SMVOnline):
         for idx in range(nsteps):
             cur_gt_state = cur_sim_states[idx + 1][0, :]
             pred_state = next_pred_states[idx][0, :]
-            frame = frames[idx + 1][::512//64, ::512//64, :]
+            frame = frames[idx + 1]
 
             # Display the masked frame for this smodel on an image axis
             ax.imshow(frame)
