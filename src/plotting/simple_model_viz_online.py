@@ -60,7 +60,7 @@ class SMVOnline(SimpleModViz):
         super(SMVOnline, self).overlay_ball_state(img_axis, offline_state, alpha, color, display_t_only)
         # Overlay rob state ...
         rob_state = online_state[:2]
-        self.overlay_rob_state(img_axis, rob_state, alpha, color=self.rob_color, display_t_only=display_t_only)
+        self.overlay_rob_state(img_axis, rob_state, alpha, color=color, display_t_only=display_t_only)
 
     def overlay_cartpole_state(self, img_axis, online_state, alpha=1.0, color='g', display_t_only: bool = False):
         """
@@ -82,5 +82,5 @@ class SMVOnline(SimpleModViz):
         super(SMVOnline, self).overlay_cartpole_state(img_axis, offline_state, alpha, color, display_t_only)
         # Overlay rob state ...
         rob_state = online_state[:2]
-        self.overlay_rob_state(img_axis, rob_state, alpha, color=self.rob_color, display_t_only=display_t_only)
+        self.overlay_rob_state(img_axis, rob_state, alpha, color=color, display_t_only=display_t_only)
         return

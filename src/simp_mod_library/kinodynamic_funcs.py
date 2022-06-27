@@ -247,8 +247,8 @@ class BallDynamics(BaseDynamics):
         self.nx = 6
         self.nu = 1
 
-        # Unknown dynamics parameters defaults
-        self.rob_mass_def = 1.0
+        # Unknown dynamics parameters defaults (True values from xml)
+        self.rob_mass_def = 1.5
         # Default values that parameterize the dynamics of the system
         self.rob_mass = torch.tensor(self.rob_mass_def, device=self.device)
 

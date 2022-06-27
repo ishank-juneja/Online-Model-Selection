@@ -85,7 +85,7 @@ class Cartpole(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
         cost = 0.0
         return ob, -cost, done, {'success': self.done, 'state': state}
 
-    # State is [x_cart, x_mass, y_mass, v_cart, theta_dot_mass]
+    # State is [x_cart, x_mass, y_mass, v_cart, vx_mass, vy_mass]
     # x_mass and y_mass here are the (x, y (or rather z)) of the contact between the mass and the rope
     # Sign of x components is flipped so that the sign is consistent with a std. x-y coordinate plane,
     # though technically an x-z plane
