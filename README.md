@@ -2,7 +2,7 @@
 
 Project Started in July 2022 that build upon some earlier work.
 
-Working Title: Uncertainty Aware Planning with Multiple (approximate) Models 
+Working Title: Online Model Selection 
 
 Setup:
 
