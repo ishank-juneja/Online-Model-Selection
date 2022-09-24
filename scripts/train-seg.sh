@@ -11,4 +11,4 @@ export PYTHONPATH=$PYTHONPATH:/home/ishank/Desktop/MM-LVSPC
 #  Augmentations to be excluded are specified: Possible exclusions to pass: no_bg_simp_model no_bg_imgnet \
 #   no_fg_texture no_bg_shape no_noise
 #  Traning config in src/config/seg_config.py
-python3 src/training/train_seg.py --arch MRCNN --folder dubins_seg_1frame --viz-output --augs no_bg_simp_model --pretrained
+python3 src/training/train_seg.py --arch MRCNN --folder ball_seg_1frame --viz-output --augs no_bg_simp_model --pretrained

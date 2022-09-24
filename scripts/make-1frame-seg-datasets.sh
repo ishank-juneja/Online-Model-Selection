@@ -11,7 +11,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/nvidia
 export MUJOCO_KEY_PATH=$MUJOCO_KEY_PATH:/home/ishank/.mujoco
 export MUJOCO_GL=egl
 
-#python3 src/simp_mod_datasets/make_seg_dataset.py --remake --folder ball_seg_1frame --datasets train test --nframes 1000 100 --seed 0
+python3 src/simp_mod_datasets/make_seg_dataset.py --remake --folder ball_seg_1frame --datasets train test --nframes 1000 100 --seed 0
 #python3 src/simp_mod_datasets/make_seg_dataset.py --remake --folder cartpole_seg_1frame --datasets train test --nframes 1000 100 --seed 0
-python3 src/simp_mod_datasets/make_seg_dataset.py --remake --folder dcartpole_seg_1frame --datasets train test --nframes 1000 100 --seed 0
+#python3 src/simp_mod_datasets/make_seg_dataset.py --remake --folder dcartpole_seg_1frame --datasets train test --nframes 1000 100 --seed 0
 #python3 src/simp_mod_datasets/make_seg_dataset.py --remake --folder dubins_seg_1frame --datasets train test --nframes 1000 100 --seed 0

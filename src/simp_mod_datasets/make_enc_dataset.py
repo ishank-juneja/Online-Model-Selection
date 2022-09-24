@@ -13,7 +13,7 @@ import os
 from src.utils import EncDataset
 from src.config import SegConfig, CommonEncConfig
 from src.simp_mod_datasets import FramesHandler, nsd, SimpleModel
-from src.plotting import GIFMaker, SimpleModViz
+from src.plotting import GIFMaker, SMVOffline
 
 
 def main(args):
@@ -28,8 +28,6 @@ def main(args):
     seg_config = SegConfig()
     enc_config = CommonEncConfig()
 
-    trajplotter = SimpleModViz(simp_model)
-    trajplotter.set_nframes(nframes)
     gifmaker = GIFMaker()
 
     # Do a consistency check and obtain the downsample ratio
@@ -71,14 +69,17 @@ def main(args):
         #  for dubins car the plane is the x-y plane
         cam_matrix = model.env.cam_matrix
 
-        # set delta_t for this model for visualizer object
-        trajplotter.set_delta_t(model.get_dt())
-
         # Save camera matrix, dubins in x-y plane others in x-z plane
         if simp_model == 'dubins':
             np.save("data/cam_matrix_dubins.npy", cam_matrix)
         else:
             np.save("data/cam_matrix.npy", cam_matrix)
+
+        trajplotter = SMVOffline(simp_model)
+        trajplotter.set_nframes(nframes)
+
+        # set delta_t for this model for visualizer object
+        trajplotter.set_delta_t(model.get_dt())
 
         # Make a tmp dir to store the .png frames by viz object
         tmp_dir_path = frames_handler.dir_manager.add_location('tmp', cur_dataset_path +

@@ -111,7 +111,7 @@ class SimpleModel:
             self.env.seed(self.seed)
             self.env.action_space.seed(self.seed)
         # Reset either an already open environment or a freshly created one after recompilation
-        self.env.reset_trial()
+        self.env.reset()
 
     def close(self):
         self.env.close()
@@ -124,7 +124,7 @@ class SimpleModel:
         return: a dictionary of masks contained in obs in addition to =returns by env.step()
         """
         # Action space of gym environment is 3D for Dubins Car env
-        obs, rew, done, info = self.env.predict()
+        obs, rew, done, info = self.env.step(action)
         return obs, rew, done, info
 
     def refresh_xml(self):

@@ -14,11 +14,11 @@ export MUJOCO_KEY_PATH=$MUJOCO_KEY_PATH:/home/ishank/.mujoco
 export MUJOCO_GL=egl
 
 # Ball can't have long trajectories so lengths kept shorter at 10 and 15
-#python3 src/simp_mod_datasets/make_enc_dataset.py --save --folder ball_enc_1frame --ntraj 10000 1000 --len 10 15 --datasets train test # Slow
+python3 src/simp_mod_datasets/make_enc_dataset.py --save --folder ball_enc_1frame --ntraj 10000 1000 --len 10 15 --datasets train test # Slow
 #python3 src/simp_mod_datasets/make_enc_dataset.py --save --folder ball_enc_1frame --ntraj 10000 1000 --len 10 15 --datasets train test --save-traj-viz --overlay
 #python3 src/simp_mod_datasets/make_enc_dataset.py --save --folder cartpole_enc_1frame --ntraj 5000 500 --len 20 25 --datasets train test # Quick
 #python3 src/simp_mod_datasets/make_enc_dataset.py --save --folder cartpole_enc_1frame --ntraj 5000 500 --len 20 25 --datasets train test  --save-traj-viz --overlay
-python3 src/simp_mod_datasets/make_enc_dataset.py --save --folder dcartpole_enc_1frame --ntraj 5000 500 --len 20 25 --datasets train test # Very Very Slow
+#python3 src/simp_mod_datasets/make_enc_dataset.py --save --folder dcartpole_enc_1frame --ntraj 5000 500 --len 20 25 --datasets train test # Very Very Slow
 #python3 src/simp_mod_datasets/make_enc_dataset.py --save --folder dcartpole_enc_1frame --ntraj 5000 500 --len 20 25 --datasets train test  --save-traj-viz --overlay
-python3 src/simp_mod_datasets/make_enc_dataset.py --save --folder dubins_enc_1frame --ntraj 5000 500 --len 20 25 --datasets train test # Very Quick
+#python3 src/simp_mod_datasets/make_enc_dataset.py --save --folder dubins_enc_1frame --ntraj 5000 500 --len 20 25 --datasets train test # Very Quick
 #python3 src/simp_mod_datasets/make_enc_dataset.py --save --folder dubins_enc_1frame --ntraj 5000 500 --len 20 25 --datasets train test  --save-traj-viz --overlay
