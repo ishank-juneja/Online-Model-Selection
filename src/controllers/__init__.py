@@ -1,0 +1,1 @@
+from src.controllers.random_controller import RandomController

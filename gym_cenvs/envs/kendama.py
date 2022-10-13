@@ -117,16 +117,17 @@ class Kendama(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
         # TODO: There was a qfrc_constraint term here in xdtl
         #  does removing it have any impact on RL methods that use the
         #  entire ground truth state ???
-        custom_state = np.concatenate([
-            self.sim.data.qpos,  # cart x pos
-            np.clip(self.sim.data.qvel, -10, 10)
-        ]).ravel()
-        # Modified to return ball/mass coordinates
         # custom_state = np.concatenate([
         #     self.sim.data.qpos,  # cart x pos
-        #     -1 * self.get_body_com('conker')[:1],
-        #     self.get_body_com('conker')[2:]
+        #     np.clip(self.sim.data.qvel, -10, 10)
         # ]).ravel()
+        # Modified to return ball/mass coordinates
+        custom_state = np.concatenate([
+            self.sim.data.qpos,     # All the joint positions
+            np.clip(self.sim.data.qpos, -10, 10),   # All the joint velocities
+            self.get_body_com('ball')[:1],  # Ball x position
+            self.get_body_com('ball')[2:]   # Ball y position (z cooridnate in 3D space)
+        ]).ravel()
         return custom_state
 
     def reset(self):
