@@ -151,3 +151,10 @@ class SimpModPerception(nn.Module):
         :return:
         """
         return self.encoder.simp_model
+
+
+class SimpModPerceptionTester(SimpModPerception):
+    def __init__(self, encoder_model_name: str, seg_model_name: str = None):
+        super().__init__(encoder_model_name, seg_model_name)
+        # This wrapper class is only invoked to test perception modules ... so invoke below
+        self.encoder.train_mode()

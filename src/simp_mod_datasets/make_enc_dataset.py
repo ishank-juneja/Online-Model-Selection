@@ -66,7 +66,7 @@ def main(args):
 
         # Get camera matrix for projecting points into pixel space
         # Plane in which the simple and complex objects live is the x-z plane for all except dubins car
-        #  for dubins car the plane is the x-y plane
+        #  for dubins car the plane is th   e x-y plane
         cam_matrix = model.env.cam_matrix
 
         # Save camera matrix, dubins in x-y plane others in x-z plane

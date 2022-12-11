@@ -2,7 +2,7 @@ from abc import ABCMeta
 import glob
 import numpy as np
 import os
-from src.learned_models import SimpModPerception
+from src.learned_models import SimpModPerceptionTester
 from src.plotting import SMVOffline, GIFMaker
 from src.simp_mod_datasets import FramesHandler
 from src.utils import ResultDirManager
@@ -24,7 +24,7 @@ class BaseVizTest(metaclass=ABCMeta):
         self.test_name = None
 
         # Init a Visual Model object
-        self.model = SimpModPerception(encoder_model_name=enc_model_name, seg_model_name=seg_model_name)
+        self.model = SimpModPerceptionTester(encoder_model_name=enc_model_name, seg_model_name=seg_model_name)
 
         # Create a file handler object
         self.dir_manager = ResultDirManager()
