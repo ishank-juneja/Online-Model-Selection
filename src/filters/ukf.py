@@ -77,7 +77,8 @@ class UnscentedKalmanFilter:
         # Do dynamics ...
         new_sigma_points_augmented = dynamics_fn(sigma_points_augmented, sigma_control).view(-1, n_sigma, self.rob_dim +
                                                                                              self.state_dim)
-        # Convert received type 3 back to type 2 to be consistent with filter
+        # Convert received type 3 back to type 2 to be consistent with filter, see notes/State_Representations.pdf for
+        #  state types
         new_sigma_points = new_sigma_points_augmented[:, :, self.rob_dim:]
 
         # Get predicted next state hat{x}_{k}^{-}

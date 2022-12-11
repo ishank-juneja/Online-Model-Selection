@@ -13,8 +13,8 @@ class PerceptionConfig:
             },
 
             'cartpole': {
-                'encoder_model_name': "model_cartpole_enc_1frame_Apr16_18-53-27",
-                'seg_model_name': "model_cartpole_seg_1frame_MRCNN_Apr16_08-59-19"
+                'encoder_model_name': "model_cartpole_enc_1frame_Dec09_17-48-17",
+                'seg_model_name': "model_cartpole_seg_1frame_MRCNN_Dec09_11-30-34"
             },
 
             'dcartpole': {
