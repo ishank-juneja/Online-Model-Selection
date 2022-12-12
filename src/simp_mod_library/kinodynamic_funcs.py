@@ -26,6 +26,8 @@ class BaseDynamics(nn.Module, metaclass=ABCMeta):
         self.pi = torch.tensor(np.pi, device=self.device)
         # y-position of cart/robot is fixed in 1D actuated models
         self.y_cart = 0.0
+        # y-velocity of the cart in the cartpole for 1D actuated models
+        self.y_vel = 0.0
         # The gear/force action amplification value for all environments
         #  Must be the same as gear attribute of actuator in complex environment xml
         self.gear = 40.0
@@ -175,7 +177,7 @@ class CartpoleDynamics(BaseDynamics):
 
         dx = xmass - x_rob  # mass-cart x_rob-distance
         # Setup such that acute angles are measured from downward pointing vertical
-        dy = self.y_cart - ymass    # mass-cart y-distance
+        dy = self.y_cart - ymass     # mass-cart y-distance
         theta = torch.atan2(dx, dy) # Pole angle from downward pointing direction
         sintheta = torch.sin(theta)
         costheta = torch.cos(theta)
@@ -183,8 +185,8 @@ class CartpoleDynamics(BaseDynamics):
         l = (dx**2 + dy**2).sqrt()
         # Compute angular velocity theta_dot from linear vel., l, and sin/cos thetas
         #  Theta dot can be estimated separately from xmass_dot and ymass_dot
-        est_x = xmass_dot / (l * costheta)
-        est_y = ymass_dot / (l * sintheta)
+        est_x = (xmass_dot - x_rob_dot) / (l * costheta)
+        est_y = (ymass_dot - self.y_vel) / (l * sintheta)
         theta_dot = (est_x + est_y) / 2
 
         mp = self.pole_mass
@@ -211,6 +213,133 @@ class CartpoleDynamics(BaseDynamics):
         # Propagate all the state variables using the qty and its derivative
         new_x_rob_dot = self.propagate(x_rob_dot, x_rob_acc)
         new_theta_dot = self.propagate(theta_dot, thetaacc)
+        # The derivative for the static qts is averaged between cur and next
+        new_x_rob = self.propagate(x_rob, 0.5 * (x_rob_dot + new_x_rob_dot))
+        new_theta = self.propagate(theta, 0.5 * (theta_dot + new_theta_dot))
+
+        # Cache trig functions of new theta
+        new_sintheta = torch.sin(new_theta)
+        new_costheta = torch.cos(new_theta)
+
+        # New mass coordinates
+        new_xmass = new_x_rob + l * new_sintheta
+        new_ymass = -l * new_costheta
+
+        vlim = self.vlim
+        new_theta_dot = new_theta_dot.clamp(min=vlim, max=vlim)
+        new_x_rob_dot = new_x_rob_dot.clamp(min=vlim, max=vlim)
+
+        # Use computed theta_dot to get estimates for next dot_{x/y}_mass
+        new_dot_xmass = l * new_costheta * new_theta_dot
+        new_dot_ymass = l * new_sintheta * new_theta_dot
+
+        # # # # # # # # # #
+        # Added for testing
+        # new_x_rob = torch.zeros_like(new_x_rob)
+        # new_x_rob_dot = torch.zeros_like(new_x_rob_dot)
+        # new_xmass = torch.zeros_like(new_xmass)
+        # new_ymass = torch.zeros_like(new_ymass)
+        # new_dot_xmass = torch.zeros_like(new_dot_xmass)
+        # new_dot_ymass = torch.zeros_like(new_dot_ymass)
+        # # # # # # # # # #
+
+        next_state = torch.cat((new_x_rob, new_x_rob_dot, new_xmass, new_ymass, new_dot_xmass, new_dot_ymass), dim=1)
+        return next_state
+
+
+class CartpoleDynamicsNew(BaseDynamics):
+    """
+    The known closed form dynamics for Cartpole
+    # Sources
+    # https://ocw.mit.edu/courses/6-832-underactuated-robotics-spring-2009/72bc06c4dc73315bf49c28a81dc2b996_MIT6_832s09_read_ch03.pdf
+    # https://ocw.mit.edu/courses/6-832-underactuated-robotics-spring-2009/
+    """
+    def __init__(self, device: str = 'cuda:0', log_normal_params: bool = False):
+        super(CartpoleDynamicsNew, self).__init__(device=device, log_normal_params=log_normal_params)
+
+        # Number of states and actions in dynamics
+        self.nx = 6
+        self.nu = 1
+
+        # Doesn't make much difference so hard-coded to fixed value, not learned
+        self.linear_damping = torch.tensor(0.2, device=self.device)
+
+        # Unknown cartpole dynamics parameters defaults as floats
+        self.pole_mass_def = 1.0
+        self.angular_damping_def = 0.1
+        self.rob_mass_def: float = 1.0
+
+        # Init all the learned dynamics params tensors to defaults
+        self.rob_mass = torch.tensor(self.rob_mass_def, device=self.device)
+        self.pole_mass = torch.tensor(self.pole_mass_def, device=self.device)
+        self.angular_damping = torch.tensor(self.angular_damping_def, device=self.device)
+
+    def reset_params(self):
+        self.rob_mass = torch.tensor(self.rob_mass_def, device=self.device)
+        self.pole_mass = torch.tensor(self.pole_mass_def, device=self.device)
+        self.angular_damping = torch.tensor(self.angular_damping_def, device=self.device)
+
+    def set_params(self, params):
+        if self.log_normal_params:
+            # If the params are the log of the actual values exponentiate ...
+            transformed = self.log_transform(params)
+            mp = transformed[0]
+            mc = transformed[1]
+            # The prior on b1 is 0.1 but for uniformity in the sys_id grad-descent optimizer
+            #  we pretend to the outside world that the value is 10x so we can use the same optimization hparams
+            b1 = 0.1 * transformed[2]
+        else:
+            raise NotImplementedError("Non log normal params are not implemented for Cartpole")
+
+        self.pole_mass = mp
+        self.rob_mass = mc
+        self.angular_damping = b1
+
+    def get_params(self):
+        if self.log_normal_params:
+            mp = self.pole_mass.log()
+            mc = self.rob_mass.log()
+            # The prior on b1 is 0.1 but for uniformity in the sys_id grad-descent optimizer
+            #  we pretend to the outside world that the value is 10x so we can use the same optimization hparams
+            b1 = (10 * self.angular_damping).log()
+        else:
+            # TODO: Remove the non-log case if not being used so this goes away...
+            raise NotImplementedError("Non log normal params are not implemented for Cartpole")
+
+        return torch.stack((mp, mc, b1), dim=0)
+
+    def forward(self, state, action):
+        """
+        Propagate state and action via cartpole dynamics
+        :param state: [x_rob, dot{x}_rob (Formerly x_cart and v_cart), x_mass, y_mass, dot{x}_mass, dot{y}_mass]
+        :param action: Force on cart in N
+        :return:
+        """
+        # Preprocess variables and view them as 2D tensors (instead of just vectors)
+        x_rob = state[:, 0].view(-1, 1)
+        # x and y positions of mass
+        xmass = state[:, 2].view(-1, 1)
+        ymass = state[:, 3].view(-1, 1)
+        # x_rob_dot == v_cart == v_robot
+        x_rob_dot = state[:, 1].view(-1, 1)
+        # x and y velocities of mass
+        xmass_dot = state[:, 4].view(-1, 1)
+        ymass_dot = state[:, 5].view(-1, 1)
+
+        dx = xmass - x_rob  # mass-cart x_rob-distance
+        # Setup such that acute angles are measured from downward pointing vertical
+        dy = self.y_cart - ymass  # mass-cart y-distance
+        theta = torch.atan2(dx, dy)  # Pole angle from downward pointing direction
+        sintheta = torch.sin(theta)
+        costheta = torch.cos(theta)
+        # Geom. length of the pole of the cartpole
+        l = (dx ** 2 + dy ** 2).sqrt()
+
+        theta_dot = 0.0
+
+        # Propagate all the state variables using the qty and its derivative
+        new_x_rob_dot = self.propagate(x_rob_dot, 0.0)
+        new_theta_dot = torch.Tensor([0.0])
         # The derivative for the static qts is averaged between cur and next
         new_x_rob = self.propagate(x_rob, 0.5 * (x_rob_dot + new_x_rob_dot))
         new_theta = self.propagate(x_rob, 0.5 * (theta_dot + new_theta_dot))

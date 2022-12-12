@@ -118,7 +118,7 @@ class Cartpole(mujoco_env.MujocoEnv, utils.EzPickle, MujocoBase):
         # cpx = cp_tip_speed * np.sin(self.sim.data.qpos[1]) + self.sim.data.qvel[0]
         # cpx = cp_tip_speed * np.cos(self.sim.data.qpos[1])
         # cpy = cp_tip_speed * np.cos(self.sim.data.qpos[1])
-        # Note: Making theta_dot part of state is avoided since the NN struggles to learn theta_dot
+        # Note: Making theta_dot part of state is avoided since the perception NN struggles to learn theta_dot
         vel_mass_x = (mass_x - prev_mass_x) / self.dt
         vel_mass_y = (mass_y - prev_mass_y) / self.dt
 

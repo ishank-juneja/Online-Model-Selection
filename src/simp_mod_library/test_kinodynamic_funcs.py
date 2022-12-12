@@ -7,7 +7,7 @@ import glob
 import numpy as np
 import os
 from src.plotting import GIFMaker, SMVKDTest
-from src.simp_mod_library.kinodynamic_funcs import BallDynamics, CartpoleDynamics
+from src.simp_mod_library.kinodynamic_funcs import BallDynamics, CartpoleDynamics, CartpoleDynamicsNew
 import torch
 from src.utils import ResultDirManager
 from typing import List
@@ -60,6 +60,7 @@ def main(args):
         env = gym.make("MujocoCartpole-v0")
         # state format: [x_cart, v_cart, x_mass, y_mass, vx_mass, vy_mass]
         indices_list = [0, 3, 1, 2, 4, 5]
+        # dyn = CartpoleDynamicsNew(device='cpu')
         dyn = CartpoleDynamics(device='cpu')
     else:
         raise NotImplementedError
@@ -126,11 +127,12 @@ def main(args):
                                                       next_pred_states=data_dict_np['pred_next_states'],
                                                       save_dir=tmp_loc_path)
 
-    gif_maker = GIFMaker(delay=35)
+    gif_maker = GIFMaker(delay=120)
 
     gif_maker.make_gif(gif_path=gif_path, frames_dir=tmp_loc_path)
 
-    cleanup_frames(tmp_loc_path)
+    # TODO: Uncomment below once cartpole dynamics work ...
+    # cleanup_frames(tmp_loc_path)
 
     # Expect tmp dir to be empty after run, try and remove
     try:
