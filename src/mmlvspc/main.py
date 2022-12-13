@@ -5,7 +5,7 @@ import logging
 import numpy as np
 import os
 from src.agents import CatchingAgent, ConkersAgent, KendamaAgent
-from src.plotting import SimpModLibViz
+from src.plotting import GIFMaker, SimpModLibViz
 from src.utils import ResultDirManager, setup_logging
 import torch
 
@@ -83,6 +83,13 @@ def main(args):
               'save_dir': dir_manager.get_abs_path('tmp'),
               }
     viz(**kwargs)
+
+    gif_maker = GIFMaker(delay=35)
+
+    gif_path = videos_folder_path + "/result.gif"
+    gif_maker.make_gif(gif_path=gif_path, frames_dir=tmp_loc_path)
+
+    viz.cleanup_frames(tmp_loc_path)
 
     # Expect tmp dir to be empty after run, try and remove
     try:
