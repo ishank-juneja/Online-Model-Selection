@@ -95,7 +95,9 @@ class SimpModLibViz:
             # Make a window and state overlay for every model
             for jdx, smodel in enumerate(self.model_names):
                 smodel_aug_state = np.hstack((rob_state, model_ep_histories[smodel]['mu_z'][idx][0, :]))
-                smodel_aug_state_pre = np.hstack((rob_state, model_ep_histories[smodel]['mu_z_pre'][idx][0, :]))
+                # Also plot raw state from perception to illustrate the benefit of using the approximate dynamics
+                #  mu_y includes rob_state in first position which is eleminated ...
+                smodel_aug_unfiltered_state = np.hstack((rob_state, model_ep_histories[smodel]['mu_y'][idx][0, 1:]))
                 smodel_frame = model_ep_histories[smodel]['masked_frame'][idx]
                 # Display the masked frame for this smodel on an image axis
                 ax[jdx + 1].imshow(smodel_frame)
@@ -105,6 +107,7 @@ class SimpModLibViz:
                 # Overlay smodel state on imag axis, only with a single frame at time t
                 #  and no frame at time t-1
                 self.overlay_fns[smodel](ax[jdx + 1], smodel_aug_state, display_t_only=True)
+                self.overlay_fns[smodel](ax[jdx + 1], smodel_aug_unfiltered_state, display_t_only=True, color='orange')
                 # Blank sup-title for right spacing
                 fig.suptitle("".format(self.task_name.capitalize()), size=14)
 

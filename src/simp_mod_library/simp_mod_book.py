@@ -136,7 +136,9 @@ class SimpModBook:
             sigma_y_pruned = sigma_y
 
         # Update belief in world
-        self.z_mu, self.z_sigma = self.trans_dist.update(mu_y_pruned, self.z_mu, self.z_sigma)
+        # Assemble a noise covariance using the noise from the perception system
+        R_from_perception = torch.diag(sigma_y_pruned[0, :]).double()
+        self.z_mu, self.z_sigma = self.trans_dist.update(mu_y_pruned, self.z_mu, self.z_sigma, R=R_from_perception)
 
         # Cache results to dataset
         self.episode_history['mu_y'].append(mu_y.cpu().detach().numpy())
