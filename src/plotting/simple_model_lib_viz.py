@@ -95,6 +95,7 @@ class SimpModLibViz:
             # Make a window and state overlay for every model
             for jdx, smodel in enumerate(self.model_names):
                 smodel_aug_state = np.hstack((rob_state, model_ep_histories[smodel]['mu_z'][idx][0, :]))
+                smodel_aug_state_pre = np.hstack((rob_state, model_ep_histories[smodel]['mu_z_pre'][idx][0, :]))
                 smodel_frame = model_ep_histories[smodel]['masked_frame'][idx]
                 # Display the masked frame for this smodel on an image axis
                 ax[jdx + 1].imshow(smodel_frame)
